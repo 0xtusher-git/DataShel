@@ -14,7 +14,7 @@ export function DataProvider({ children }) {
     setLoading(true);
     
     try {
-      const listUrl = `${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}`;
+      const listUrl = `${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/datashel-registry.json`;
       console.log('[DataShel] Fetching registry from:', listUrl);
       
       const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
@@ -27,34 +27,29 @@ export function DataProvider({ children }) {
       const listResponse = await fetch(listUrl, {
         headers: headers
       });
-      if (!listResponse.ok) throw new Error('Failed to fetch registry list');
+
+      if (!listResponse.ok) {
+        if (listResponse.status === 404) {
+          console.log('[DataShel] Registry not found, starting fresh.');
+          setDatasets([]);
+          return;
+        }
+        const errText = await listResponse.text();
+        console.error(`[DataShel] Registry fetch failed (${listResponse.status}):`, errText);
+        throw new Error(`Failed to fetch registry list (${listResponse.status})`);
+      }
       
-      const blobList = await listResponse.json();
+      const validDatasets = await listResponse.json();
       
-      // Fetch each metadata JSON
-      const fetched = await Promise.all(
-        blobList
-          .filter(b => b.name && b.name.startsWith('metadata_'))
-          .map(async (b) => {
-            try {
-              const res = await fetch(`${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/${b.name}`, {
-                headers: headers
-              });
-              if (!res.ok) return null;
-              return await res.json();
-            } catch (e) {
-              console.error(`Failed to fetch metadata for ${b.name}:`, e);
-              return null;
-            }
-          })
-      );
-      
-      const validDatasets = fetched
-        .filter(d => d !== null)
-        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-      
-      console.log(`[DataShel] Loaded ${validDatasets.length} datasets from Shelby`);
-      setDatasets(validDatasets);
+      // Sort datasets by timestamp (newest first)
+      if (Array.isArray(validDatasets)) {
+        validDatasets.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        console.log(`[DataShel] Loaded ${validDatasets.length} datasets from Shelby`);
+        setDatasets(validDatasets);
+      } else {
+        console.warn('[DataShel] Registry format is invalid. Resetting to empty array.');
+        setDatasets([]);
+      }
     } catch (err) {
       console.error('Error fetching datasets from Shelby:', err);
     } finally {

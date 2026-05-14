@@ -105,7 +105,10 @@ export default function Upload() {
       };
       console.log('[DataShel] Sending headers for file upload:', headers);
 
-      const uploadResponse = await fetch(`${SHELBY_API_BASE}/v1/blobs/${blobPath}`, {
+      const uploadUrl = `${SHELBY_API_BASE}/v1/blobs/${walletAddr}/${fileName}`;
+      console.log(`[DataShel] Upload URL: ${uploadUrl}`);
+      
+      const uploadResponse = await fetch(uploadUrl, {
         method: 'PUT',
         headers: headers,
         body: file
@@ -113,14 +116,15 @@ export default function Upload() {
 
       if (!uploadResponse.ok) {
         const errText = await uploadResponse.text();
-        throw new Error(`File upload failed: ${errText}`);
+        console.error(`[DataShel] Upload 400/Error Response Body:`, errText);
+        throw new Error(`File upload failed (${uploadResponse.status}): ${errText}`);
       }
 
       console.log('[DataShel] File uploaded to:', blobPath);
       setUploadProgress(60);
 
-      // STEP 2: REGISTER METADATA GLOBALLY
-      console.log('[DataShel] Step 2: Registering metadata on Shelby...');
+      // STEP 2: REGISTER METADATA GLOBALLY IN SINGLE REGISTRY FILE
+      console.log('[DataShel] Step 2: Registering metadata in global registry...');
       addToast('Registering dataset globally...', 'success', '🌍');
 
       const metadata = {
@@ -133,35 +137,48 @@ export default function Upload() {
         uploader: walletAddr,
         blobPath: blobPath,
         fileName: file.name,
-        fileType: file.type,
+        fileType: file.type || 'application/octet-stream',
         timestamp: timestamp,
         downloads: 0,
         earnings: 0
       };
 
-      const metaFileName = `metadata_${metadataId}.json`;
       const metaHeaders = {
         'Authorization': API_KEY,
         'x-api-key': API_KEY,
         'Content-Type': 'application/json'
       };
       
-      console.log('[DataShel] Sending headers for metadata upload:', metaHeaders);
-
-      const metaResponse = await fetch(`${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/${metaFileName}`, {
+      const registryUrl = `${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/datashel-registry.json`;
+      console.log('[DataShel] Fetching existing registry from:', registryUrl);
+      
+      let existingRegistry = [];
+      try {
+        const fetchRegRes = await fetch(registryUrl, { headers: metaHeaders });
+        if (fetchRegRes.ok) {
+          existingRegistry = await fetchRegRes.json();
+          if (!Array.isArray(existingRegistry)) existingRegistry = [];
+        } else if (fetchRegRes.status !== 404) {
+          console.error('[DataShel] Failed to fetch registry:', await fetchRegRes.text());
+        }
+      } catch (err) {
+        console.error('[DataShel] Error fetching registry:', err);
+      }
+      
+      existingRegistry.push(metadata);
+      
+      console.log('[DataShel] Sending updated registry to Shelby...');
+      const metaResponse = await fetch(registryUrl, {
         method: 'PUT',
         headers: metaHeaders,
-        body: JSON.stringify(metadata)
+        body: JSON.stringify(existingRegistry)
       });
 
       if (!metaResponse.ok) {
-        console.warn('[DataShel] Global registry upload failed, storing in uploader path', await metaResponse.text());
-        // Fallback: store in uploader's own path if registry write fails
-        await fetch(`${SHELBY_API_BASE}/v1/blobs/${walletAddr}/${metaFileName}`, {
-          method: 'PUT',
-          headers: metaHeaders,
-          body: JSON.stringify(metadata)
-        });
+        const errText = await metaResponse.text();
+        console.error(`[DataShel] Registry PUT Error Response Body:`, errText);
+        console.warn('[DataShel] Global registry upload failed');
+        throw new Error(`Registry update failed (${metaResponse.status}): ${errText}`);
       }
 
       console.log('[DataShel] Metadata registered successfully');
