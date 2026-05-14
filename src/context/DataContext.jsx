@@ -1,39 +1,59 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { ShelbyClient } from '@shelby-protocol/sdk/browser';
+import { Network } from '@aptos-labs/ts-sdk';
 
 const DataContext = createContext(null);
 
 const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
 const REGISTRY_ADDR = "0xd47a54e17b35414d87654a1d5e43f4d3f0000000"; // Global registry account
 
+const shelbyClient = new ShelbyClient({ 
+  network: Network.TESTNET,
+  apiKey: import.meta.env.VITE_SHELBY_API_KEY
+});
+
 export function DataProvider({ children }) {
   const [datasets, setDatasets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all dataset metadata from Shelby
+// Fetch all dataset metadata from Shelby
   const fetchAllDatasets = async () => {
     setLoading(true);
     
     try {
-      // Fetch list of blobs for the registry account
-      const listUrl = `${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}`;
-      console.log('[DataShel] Fetching registry from:', listUrl);
+      console.log('[DataShel] Fetching registry using ShelbyClient Indexer...');
       
-      const listResponse = await fetch(listUrl);
-      if (!listResponse.ok) throw new Error('Failed to fetch registry list');
-      
-      const blobList = await listResponse.json();
+      let blobList = [];
+      try {
+        const indexerRes = await shelbyClient.indexer.getBlobs({
+          where: { owner: { _eq: REGISTRY_ADDR } }
+        });
+        blobList = indexerRes.blobs || [];
+      } catch (e) {
+        console.warn('[DataShel] Indexer failed, falling back to RPC...', e);
+        const listUrl = `${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}`;
+        const listResponse = await fetch(listUrl);
+        if (listResponse.ok) {
+          blobList = await listResponse.json();
+          // Normalize to match indexer format
+          blobList = blobList.map(b => ({ blob_name: b.name }));
+        }
+      }
       
       // Fetch each metadata JSON
       const fetched = await Promise.all(
         blobList
-          .filter(b => b.name.startsWith('metadata_'))
+          .filter(b => b.blob_name && b.blob_name.startsWith('metadata_'))
           .map(async (b) => {
             try {
-              const res = await fetch(`${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/${b.name}`);
-              if (!res.ok) return null;
-              return await res.json();
+              const shelbyBlob = await shelbyClient.download({
+                account: REGISTRY_ADDR,
+                blobName: b.blob_name
+              });
+              const response = new Response(shelbyBlob.readable);
+              return await response.json();
             } catch (e) {
-              console.error(`Failed to fetch metadata for ${b.name}:`, e);
+              console.error(`Failed to fetch metadata for ${b.blob_name}:`, e);
               return null;
             }
           })
