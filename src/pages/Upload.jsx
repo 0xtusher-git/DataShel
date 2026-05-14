@@ -6,14 +6,7 @@ import { useToast } from '../context/ToastContext';
 import FaucetPanel from '../components/FaucetPanel';
 import './Upload.css';
 
-import { ShelbyClient } from '@shelby-protocol/sdk/browser';
-import { Network } from '@aptos-labs/ts-sdk';
-
-const shelbyClient = new ShelbyClient({ 
-  network: Network.TESTNET,
-  apiKey: import.meta.env.VITE_SHELBY_API_KEY
-});
-
+const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
 const REGISTRY_ADDR = "0xd47a54e17b35414d87654a1d5e43f4d3f0000000";
 
 const CATEGORIES = ['Images', 'Text', 'Audio', 'Tabular', 'Other'];
@@ -94,20 +87,29 @@ export default function Upload() {
       const metadataId = `ds_${timestamp}`;
       const walletAddr = wallet.address.toString();
 
-      const fileBuffer = new Uint8Array(await file.arrayBuffer());
       const fileName = `${timestamp}_${file.name.replace(/\s+/g, '_')}`;
       const blobPath = `${walletAddr}/${fileName}`;
 
       // STEP 1: UPLOAD RAW FILE
-      console.log('[DataShel] Step 1: Uploading raw file to Shelby using SDK...');
+      console.log('[DataShel] Step 1: Uploading raw file to Shelby...');
       addToast('Uploading dataset to Shelby...', 'success', '⬆');
       setUploadProgress(30);
 
-      await shelbyClient.rpc.putBlob({
-        account: walletAddr,
-        blobName: fileName,
-        blobData: fileBuffer,
+      const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
+
+      const uploadResponse = await fetch(`${SHELBY_API_BASE}/v1/blobs/${blobPath}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': file.type || 'application/octet-stream'
+        },
+        body: file
       });
+
+      if (!uploadResponse.ok) {
+        const errText = await uploadResponse.text();
+        throw new Error(`File upload failed: ${errText}`);
+      }
 
       console.log('[DataShel] File uploaded to:', blobPath);
       setUploadProgress(60);
@@ -133,21 +135,26 @@ export default function Upload() {
       };
 
       const metaFileName = `metadata_${metadataId}.json`;
-      const metaDataBuffer = new TextEncoder().encode(JSON.stringify(metadata));
 
-      try {
-        await shelbyClient.rpc.putBlob({
-          account: REGISTRY_ADDR,
-          blobName: metaFileName,
-          blobData: metaDataBuffer,
-        });
-      } catch (registryErr) {
-        console.warn('[DataShel] Global registry upload failed, storing in uploader path', registryErr);
+      const metaResponse = await fetch(`${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/${metaFileName}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(metadata)
+      });
+
+      if (!metaResponse.ok) {
+        console.warn('[DataShel] Global registry upload failed, storing in uploader path', await metaResponse.text());
         // Fallback: store in uploader's own path if registry write fails
-        await shelbyClient.rpc.putBlob({
-          account: walletAddr,
-          blobName: metaFileName,
-          blobData: metaDataBuffer,
+        await fetch(`${SHELBY_API_BASE}/v1/blobs/${walletAddr}/${metaFileName}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(metadata)
         });
       }
 

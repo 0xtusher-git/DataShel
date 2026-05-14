@@ -4,7 +4,6 @@ import { useWallet } from '../context/WalletContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import './DatasetCard.css';
-import { ShelbyClient } from '@shelby-protocol/sdk/browser';
 
 // Initialize Aptos client for Shelbynet
 const aptosConfig = new AptosConfig({ 
@@ -13,10 +12,7 @@ const aptosConfig = new AptosConfig({
 });
 const aptosClient = new Aptos(aptosConfig);
 
-const shelbyClient = new ShelbyClient({ 
-  network: Network.TESTNET,
-  apiKey: import.meta.env.VITE_SHELBY_API_KEY
-});
+const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
 
 const CATEGORY_ICONS = {
   Images:  '🖼',
@@ -87,22 +83,20 @@ export default function DatasetCard({ dataset }) {
         '💰'
       );
       
-      // Step 2: Retrieve the data from Shelby Protocol using SDK
-      const account = dataset.uploader;
-      const actualBlobName = dataset.blobPath 
-        ? dataset.blobPath.substring(dataset.uploader.length + 1)
-        : dataset.fileName;
-
-      console.log('[DataShel] Downloading blob:', account, actualBlobName);
-
-      const shelbyBlob = await shelbyClient.download({
-        account: account,
-        blobName: actualBlobName,
-      });
+      // Step 2: Retrieve the data from Shelby Protocol
+      const blobPath = dataset.blobPath || `${dataset.uploader}/${dataset.fileName}`;
+      const downloadUrl = `${SHELBY_API_BASE}/v1/blobs/${blobPath}`;
       
-      const response = new Response(shelbyBlob.readable);
-      const blob = await response.blob();
-
+      console.log('[DataShel] Fetching blob from:', downloadUrl);
+      
+      const res = await fetch(downloadUrl, {
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SHELBY_API_KEY}`
+        }
+      });
+      if (!res.ok) throw new Error(`Download failed (${res.status}): ${await res.text()}`);
+      
+      const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
