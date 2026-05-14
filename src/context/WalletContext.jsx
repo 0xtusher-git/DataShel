@@ -24,12 +24,11 @@ export function WalletProvider({ children }) {
       // Strict null checks for account and network
       const addr = account?.address?.toString();
       const pubKey = account?.publicKey?.toString();
-      const netName = aptosNetwork?.name;
-      
-      const isWrong = !!netName && netName.toLowerCase() !== 'shelbynet';
+      const netName = aptosNetwork?.name?.toLowerCase();
+      const isWrong = !!netName && netName !== 'shelbynet' && netName !== 'custom';
       
       if (isWrong) {
-        setError(`Wrong network: ${netName}. Please switch to Shelbynet in Petra settings.`);
+        setError(`Wrong network: ${aptosNetwork?.name}. Please switch to Shelbynet in Petra settings.`);
       } else {
         setError(null);
       }

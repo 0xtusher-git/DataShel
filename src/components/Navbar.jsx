@@ -66,7 +66,7 @@ export default function Navbar() {
               {/* Network badge */}
               <div className={`network-badge ${wallet?.isWrongNetwork ? 'network-badge-error' : ''}`}>
                 <span className={`network-dot ${wallet?.isWrongNetwork ? 'network-dot-error' : ''}`} />
-                {wallet?.network || 'Shelbynet'}
+                {wallet?.network === 'custom' ? 'Shelbynet' : (wallet?.network || 'Shelbynet')}
               </div>
 
               {wallet ? (
@@ -108,12 +108,6 @@ export default function Navbar() {
               >
                 <span className={`menu-icon ${menuOpen ? 'open' : ''}`} />
               </button>
-            </div>
-            
-            {/* Debug Line */}
-            <div className="navbar-debug">
-              wallet detected: <span style={{ color: isDetected ? '#22c55e' : '#ef4444' }}>{isDetected ? 'yes' : 'no'}</span>, 
-              current network: <span style={{ color: wallet?.isWrongNetwork ? '#ef4444' : '#f9a8d4' }}>{wallet?.network || 'none'}</span>
             </div>
           </div>
         </div>
