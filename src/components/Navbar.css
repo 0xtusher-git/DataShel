@@ -150,8 +150,55 @@
 .mobile-link:hover  { color: var(--white); background: rgba(255,255,255,0.05); }
 .mobile-link.active { color: var(--pink); background: var(--pink-dim); }
 
+.navbar-actions-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.navbar-debug {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  font-family: 'Inter', monospace;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Error Banner */
+.error-banner {
+  background: #ef4444;
+  color: white;
+  padding: 8px 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+}
+.error-banner-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.error-banner-link {
+  text-decoration: underline;
+  color: white;
+  font-size: 0.78rem;
+}
+
+/* Error states for network badge */
+.network-badge-error {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+}
+.network-dot-error {
+  background: #ef4444;
+}
+
 @media (max-width: 768px) {
   .navbar-links   { display: none; }
   .network-badge  { display: none; }
   .menu-toggle    { display: block; }
+  .navbar-debug   { display: none; }
 }
