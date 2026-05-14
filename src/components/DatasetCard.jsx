@@ -89,9 +89,11 @@ export default function DatasetCard({ dataset }) {
       
       console.log('[DataShel] Fetching blob from:', downloadUrl);
       
+      const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
       const res = await fetch(downloadUrl, {
         headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SHELBY_API_KEY}`
+          'Authorization': `Bearer ${API_KEY}`,
+          'X-API-Key': API_KEY
         }
       });
       if (!res.ok) throw new Error(`Download failed (${res.status}): ${await res.text()}`);

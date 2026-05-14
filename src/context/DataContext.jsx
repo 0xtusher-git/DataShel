@@ -21,7 +21,8 @@ export function DataProvider({ children }) {
 
       const listResponse = await fetch(listUrl, {
         headers: {
-          'Authorization': `Bearer ${API_KEY}`
+          'Authorization': `Bearer ${API_KEY}`,
+          'X-API-Key': API_KEY
         }
       });
       if (!listResponse.ok) throw new Error('Failed to fetch registry list');
@@ -36,7 +37,8 @@ export function DataProvider({ children }) {
             try {
               const res = await fetch(`${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/${b.name}`, {
                 headers: {
-                  'Authorization': `Bearer ${API_KEY}`
+                  'Authorization': `Bearer ${API_KEY}`,
+                  'X-API-Key': API_KEY
                 }
               });
               if (!res.ok) return null;

@@ -96,11 +96,13 @@ export default function Upload() {
       setUploadProgress(30);
 
       const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
+      console.log('[DataShel] Using API Key (starts with):', API_KEY ? API_KEY.substring(0, 4) + '...' : 'UNDEFINED');
 
       const uploadResponse = await fetch(`${SHELBY_API_BASE}/v1/blobs/${blobPath}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
+          'X-API-Key': API_KEY,
           'Content-Type': file.type || 'application/octet-stream'
         },
         body: file
@@ -140,6 +142,7 @@ export default function Upload() {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
+          'X-API-Key': API_KEY,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(metadata)
@@ -152,6 +155,7 @@ export default function Upload() {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${API_KEY}`,
+            'X-API-Key': API_KEY,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(metadata)
