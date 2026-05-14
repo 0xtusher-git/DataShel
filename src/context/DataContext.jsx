@@ -18,12 +18,14 @@ export function DataProvider({ children }) {
       console.log('[DataShel] Fetching registry from:', listUrl);
       
       const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
+      const headers = {
+        'Authorization': API_KEY,
+        'x-api-key': API_KEY
+      };
+      console.log('[DataShel] Sending headers for registry fetch:', headers);
 
       const listResponse = await fetch(listUrl, {
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'X-API-Key': API_KEY
-        }
+        headers: headers
       });
       if (!listResponse.ok) throw new Error('Failed to fetch registry list');
       
@@ -36,10 +38,7 @@ export function DataProvider({ children }) {
           .map(async (b) => {
             try {
               const res = await fetch(`${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/${b.name}`, {
-                headers: {
-                  'Authorization': `Bearer ${API_KEY}`,
-                  'X-API-Key': API_KEY
-                }
+                headers: headers
               });
               if (!res.ok) return null;
               return await res.json();

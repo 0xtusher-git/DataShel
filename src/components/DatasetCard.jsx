@@ -87,14 +87,15 @@ export default function DatasetCard({ dataset }) {
       const blobPath = dataset.blobPath || `${dataset.uploader}/${dataset.fileName}`;
       const downloadUrl = `${SHELBY_API_BASE}/v1/blobs/${blobPath}`;
       
-      console.log('[DataShel] Fetching blob from:', downloadUrl);
-      
       const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
+      const headers = {
+        'Authorization': API_KEY,
+        'x-api-key': API_KEY
+      };
+      console.log('[DataShel] Sending headers for download:', headers);
+      
       const res = await fetch(downloadUrl, {
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'X-API-Key': API_KEY
-        }
+        headers: headers
       });
       if (!res.ok) throw new Error(`Download failed (${res.status}): ${await res.text()}`);
       

@@ -98,13 +98,16 @@ export default function Upload() {
       const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
       console.log('[DataShel] Using API Key (starts with):', API_KEY ? API_KEY.substring(0, 4) + '...' : 'UNDEFINED');
 
+      const headers = {
+        'Authorization': API_KEY,
+        'x-api-key': API_KEY,
+        'Content-Type': file.type || 'application/octet-stream'
+      };
+      console.log('[DataShel] Sending headers for file upload:', headers);
+
       const uploadResponse = await fetch(`${SHELBY_API_BASE}/v1/blobs/${blobPath}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'X-API-Key': API_KEY,
-          'Content-Type': file.type || 'application/octet-stream'
-        },
+        headers: headers,
         body: file
       });
 
@@ -137,14 +140,17 @@ export default function Upload() {
       };
 
       const metaFileName = `metadata_${metadataId}.json`;
+      const metaHeaders = {
+        'Authorization': API_KEY,
+        'x-api-key': API_KEY,
+        'Content-Type': 'application/json'
+      };
+      
+      console.log('[DataShel] Sending headers for metadata upload:', metaHeaders);
 
       const metaResponse = await fetch(`${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/${metaFileName}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'X-API-Key': API_KEY,
-          'Content-Type': 'application/json'
-        },
+        headers: metaHeaders,
         body: JSON.stringify(metadata)
       });
 
@@ -153,11 +159,7 @@ export default function Upload() {
         // Fallback: store in uploader's own path if registry write fails
         await fetch(`${SHELBY_API_BASE}/v1/blobs/${walletAddr}/${metaFileName}`, {
           method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${API_KEY}`,
-            'X-API-Key': API_KEY,
-            'Content-Type': 'application/json'
-          },
+          headers: metaHeaders,
           body: JSON.stringify(metadata)
         });
       }
