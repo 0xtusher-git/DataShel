@@ -22,8 +22,8 @@ export function WalletProvider({ children }) {
   useEffect(() => {
     if (connected && account) {
       // Strict null checks for account and network
-      const addr = account?.address;
-      const pubKey = account?.publicKey;
+      const addr = account?.address?.toString();
+      const pubKey = account?.publicKey?.toString();
       const netName = aptosNetwork?.name;
       
       const isWrong = !!netName && netName.toLowerCase() !== 'shelbynet';
@@ -74,7 +74,8 @@ export function WalletProvider({ children }) {
 
   const truncate = (addr) => {
     if (!addr) return '';
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    const s = addr.toString();
+    return `${s.slice(0, 6)}...${s.slice(-4)}`;
   };
 
   return (

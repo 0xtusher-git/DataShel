@@ -54,7 +54,10 @@ export default function MyDatasets() {
   const [editTarget, setEditTarget] = useState(null);
 
   const myDatasets = wallet
-    ? datasets.filter(d => d.uploads === wallet.address || d.uploader === wallet.address)
+    ? datasets.filter(d => {
+        const myAddr = wallet.address.toString();
+        return d.uploader === myAddr;
+      })
     : [];
 
   const totalEarnings = myDatasets.reduce((s, d) => s + d.earnings, 0);
@@ -90,7 +93,7 @@ export default function MyDatasets() {
         <div className="myds-header">
           <div>
             <h1 className="myds-title">My Datasets</h1>
-            <p className="myds-sub wallet-addr">{wallet.address}</p>
+            <p className="myds-sub wallet-addr">{wallet.address.toString()}</p>
           </div>
           <Link to="/upload" className="btn btn-primary btn-sm" id="myds-upload-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

@@ -14,8 +14,9 @@ const CATEGORY_ICONS = {
 
 function truncateAddr(addr) {
   if (!addr) return '';
-  if (addr.length <= 12) return addr;
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  const s = addr.toString();
+  if (s.length <= 12) return s;
+  return `${s.slice(0, 6)}...${s.slice(-4)}`;
 }
 
 export default function DatasetCard({ dataset }) {

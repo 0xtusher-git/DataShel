@@ -103,8 +103,8 @@ export default function Upload() {
         description: form.description.trim(),
         size: formatBytes(file.size),
         price: Number(form.price),
-        uploader: wallet.address,
-        uploads: wallet.address,
+        uploader: wallet.address.toString(),
+        uploads: wallet.address.toString(),
       });
 
       addToast('Dataset uploaded successfully! 🎉', 'success', '✓');
