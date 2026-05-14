@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
+import { ShelbyClient, ShelbyNetwork } from '@shelby-protocol/sdk';
 import { useWallet } from '../context/WalletContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
@@ -11,6 +12,19 @@ const aptosConfig = new AptosConfig({
   network: Network.CUSTOM
 });
 const aptosClient = new Aptos(aptosConfig);
+
+// Initialize Shelby Client
+let shelbyClient = null;
+try {
+  shelbyClient = new ShelbyClient({
+    network: ShelbyNetwork.SHELBYNET,
+    shelby: {
+      rpc: { baseUrl: "https://api.shelbynet.shelby.xyz/shelby" }
+    }
+  });
+} catch (e) {
+  console.error('Failed to init ShelbyClient:', e);
+}
 
 const CATEGORY_ICONS = {
   Images:  '🖼',
@@ -32,6 +46,18 @@ export default function DatasetCard({ dataset }) {
   const { recordDownload } = useData();
   const { addToast } = useToast();
   const [downloading, setDownloading] = useState(false);
+
+  const triggerFileDownload = (blobData, fileName, mimeType) => {
+    const blob = new Blob([blobData], { type: mimeType || 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || `dataset_${dataset.id}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const handleDownload = async (e) => {
     e.stopPropagation();
@@ -62,14 +88,12 @@ export default function DatasetCard({ dataset }) {
         }
       });
 
-      // User approved! response contains hash.
+      // User approved!
       const txHash = response.hash;
-      console.log('Transaction submitted:', txHash);
       
-      // On Shelbynet, we trust the hash and proceed immediately to skip confirmation delays
       addToast(
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span>Payment submitted successfully!</span>
+          <span>Payment submitted! Fetching dataset…</span>
           <a 
             href={`https://explorer.shelby.xyz/txn/${txHash}?network=testnet`} 
             target="_blank" 
@@ -83,18 +107,47 @@ export default function DatasetCard({ dataset }) {
         '💰'
       );
       
-      recordDownload(dataset.id);
+      // Step 2: Retrieve the data
+      let fileContent = null;
       
-      // Simulate file download start immediately
-      addToast('Download starting…', 'success', '⬇');
-      console.log('Starting download for dataset:', dataset.name);
+      if (dataset.storageMethod === 'shelby' && shelbyClient && dataset.blobId) {
+        try {
+          const blob = await shelbyClient.rpc.getBlob({
+            account: dataset.uploader,
+            blobName: dataset.blobId
+          });
+          fileContent = await blob.getData(); // ShelbyBlob.getData returns Uint8Array
+        } catch (sError) {
+          console.error('Shelby retrieval failed:', sError);
+          addToast('Shelby RPC error. Check console.', 'error');
+        }
+      } else if (dataset.storageMethod === 'local' && dataset.blobId) {
+        // Fallback for local files
+        const base64 = localStorage.getItem(`ds_blob_${dataset.blobId}`);
+        if (base64) {
+          const res = await fetch(base64);
+          fileContent = new Uint8Array(await res.arrayBuffer());
+        }
+      } else {
+        // Mock download for seed data
+        await new Promise(r => setTimeout(r, 1500));
+        fileContent = new TextEncoder().encode("This is a demo dataset from DataShel Shelbynet Prototype.");
+      }
+
+      if (fileContent) {
+        triggerFileDownload(fileContent, dataset.fileName || `${dataset.name}.zip`, dataset.fileType);
+        recordDownload(dataset.id);
+        addToast('Download complete! ✓', 'success', '📦');
+      } else {
+        throw new Error('Could not retrieve file content');
+      }
       
     } catch (error) {
       console.error('Download error:', error);
       if (error.message?.includes('rejected')) {
         addToast('Transaction cancelled', 'error', '✕');
       } else {
-        addToast(`Transaction failed: ${error.message || 'Unknown error'}`, 'error');
+        addToast(`Download failed: ${error.message || 'Unknown error'}`, 'error');
       }
     } finally {
       setDownloading(false);

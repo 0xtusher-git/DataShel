@@ -1,10 +1,24 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ShelbyClient, ShelbyNetwork } from '@shelby-protocol/sdk';
 import { useWallet } from '../context/WalletContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import FaucetPanel from '../components/FaucetPanel';
 import './Upload.css';
+
+// Initialize Shelby Client
+let shelbyClient = null;
+try {
+  shelbyClient = new ShelbyClient({
+    network: ShelbyNetwork.SHELBYNET,
+    shelby: {
+      rpc: { baseUrl: "https://api.shelbynet.shelby.xyz/shelby" } // Correct RPC from search
+    }
+  });
+} catch (e) {
+  console.error('Failed to init ShelbyClient:', e);
+}
 
 const CATEGORIES = ['Images', 'Text', 'Audio', 'Tabular', 'Other'];
 
@@ -80,23 +94,51 @@ export default function Upload() {
     setUploadProgress(0);
 
     try {
-      // Step 1: Sign storage fee transaction
-      addToast('Awaiting wallet signature…', 'success', '🔑');
-      await new Promise(r => setTimeout(r, 1000));
-      setUploadProgress(15);
+      // Step 1: Prepare blob
+      const blobName = `${wallet.address.toString()}/${Date.now()}_${file.name}`;
+      const fileData = new Uint8Array(await file.arrayBuffer());
+      
+      let blobId = null;
+      let storageMethod = 'shelby';
 
-      // Step 2: Simulate Shelby storage upload
-      addToast('Uploading to Shelby storage…', 'success', '⬆');
-      for (let p = 15; p <= 85; p += 10) {
-        await new Promise(r => setTimeout(r, 300));
-        setUploadProgress(p);
+      // Step 2: Try Shelby Upload
+      if (shelbyClient) {
+        addToast('Uploading to Shelby storage…', 'success', '⬆');
+        try {
+          await shelbyClient.rpc.putBlob({
+            account: wallet.address.toString(),
+            blobName: blobName,
+            blobData: fileData,
+            onProgress: (p) => {
+              const pct = Math.floor((p.uploadedBytes / p.totalBytes) * 100);
+              setUploadProgress(pct);
+            }
+          });
+          blobId = blobName;
+          setUploadProgress(100);
+        } catch (sError) {
+          console.error('Shelby RPC upload failed, falling back to base64:', sError);
+          storageMethod = 'local';
+        }
+      } else {
+        storageMethod = 'local';
       }
 
-      // Step 3: On-chain registration
-      addToast('Registering on Aptos…', 'success', '⛓');
-      await new Promise(r => setTimeout(r, 800));
-      setUploadProgress(100);
+      // Fallback to localStorage if Shelby failed
+      if (storageMethod === 'local') {
+        addToast('Shelby RPC offline. Using local storage fallback…', 'warning', '💾');
+        setUploadProgress(50);
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+        blobId = `local_${Date.now()}`;
+        localStorage.setItem(`ds_blob_${blobId}`, base64);
+        setUploadProgress(100);
+      }
 
+      // Step 3: Register in DataContext (simulates on-chain metadata)
       const ds = addDataset({
         name: form.name.trim(),
         category: form.category,
@@ -105,11 +147,16 @@ export default function Upload() {
         price: Number(form.price),
         uploader: wallet.address.toString(),
         uploads: wallet.address.toString(),
+        blobId: blobId,
+        storageMethod: storageMethod,
+        fileName: file.name,
+        fileType: file.type
       });
 
-      addToast('Dataset uploaded successfully! 🎉', 'success', '✓');
+      addToast('Dataset listed successfully! 🎉', 'success', '✓');
       setTimeout(() => navigate('/my-datasets'), 1500);
     } catch (err) {
+      console.error('Upload error:', err);
       addToast('Upload failed. Please try again.', 'error');
       setUploadProgress(0);
     } finally {
