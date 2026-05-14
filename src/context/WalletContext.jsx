@@ -21,8 +21,12 @@ export function WalletProvider({ children }) {
   // Sync official adapter state with our local context
   useEffect(() => {
     if (connected && account) {
+      // Strict null checks for account and network
+      const addr = account?.address;
+      const pubKey = account?.publicKey;
       const netName = aptosNetwork?.name;
-      const isWrong = netName && netName.toLowerCase() !== 'shelbynet';
+      
+      const isWrong = !!netName && netName.toLowerCase() !== 'shelbynet';
       
       if (isWrong) {
         setError(`Wrong network: ${netName}. Please switch to Shelbynet in Petra settings.`);
@@ -31,25 +35,31 @@ export function WalletProvider({ children }) {
       }
 
       setWallet({
-        address: account.address,
-        publicKey: account.publicKey,
+        address: addr,
+        publicKey: pubKey,
         network: netName || 'Shelbynet',
         isWrongNetwork: isWrong
       });
     } else {
       setWallet(null);
+      // Only clear error if not connecting (keeps "Petra not detected" or initial errors visible)
+      if (!aptosConnecting && !connected) {
+        // setError(null); // Keep error if we want to show "not detected"
+      }
     }
-  }, [connected, account, aptosNetwork]);
+  }, [connected, account, aptosNetwork, aptosConnecting]);
 
   const connect = useCallback(async () => {
     setError(null);
     try {
-      // The official adapter handles detection
+      // The official adapter handles detection and selection
       await aptosConnect('Petra');
       return true;
     } catch (err) {
       console.error('Wallet connection failed:', err);
-      setError(err.message || 'Connection failed. Please try again.');
+      // Specific error handling for the adapter
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Connection failed. Please try again.');
       return false;
     }
   }, [aptosConnect]);
