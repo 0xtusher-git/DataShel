@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const DataContext = createContext(null);
 
-const SHELBY_RPC_BASE_URL = "https://api.shelbynet.shelby.xyz/shelby/v1/blob";
+const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
 const REGISTRY_ADDR = "0xd47a54e17b35414d87654a1d5e43f4d3f0000000"; // Global registry account
 
 export function DataProvider({ children }) {
@@ -12,36 +12,39 @@ export function DataProvider({ children }) {
   // Fetch all dataset metadata from Shelby
   const fetchAllDatasets = async () => {
     setLoading(true);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
     
     try {
-      // In Shelby, we fetch the list of blobs for the registry account
-      const listResponse = await fetch(`${SHELBY_RPC_BASE_URL}s/${REGISTRY_ADDR}`, { signal: controller.signal });
-      clearTimeout(timeoutId);
+      // Fetch list of blobs for the registry account
+      const listUrl = `${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}`;
+      console.log('[DataShel] Fetching registry from:', listUrl);
       
-      if (!listResponse.ok) throw new Error('Failed to fetch registry');
+      const listResponse = await fetch(listUrl);
+      if (!listResponse.ok) throw new Error('Failed to fetch registry list');
       
       const blobList = await listResponse.json();
       
       // Fetch each metadata JSON
       const fetched = await Promise.all(
-        blobList.filter(b => b.name.startsWith('metadata_')).map(async (b) => {
-          const mController = new AbortController();
-          const mTimeoutId = setTimeout(() => mController.abort(), 10000); // 10s per metadata
-          try {
-            const res = await fetch(`${SHELBY_RPC_BASE_URL}/${REGISTRY_ADDR}/${b.name}`, { signal: mController.signal });
-            clearTimeout(mTimeoutId);
-            return await res.json();
-          } catch (e) {
-            clearTimeout(mTimeoutId);
-            console.error(`Failed to fetch metadata for ${b.name}:`, e);
-            return null;
-          }
-        })
+        blobList
+          .filter(b => b.name.startsWith('metadata_'))
+          .map(async (b) => {
+            try {
+              const res = await fetch(`${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/${b.name}`);
+              if (!res.ok) return null;
+              return await res.json();
+            } catch (e) {
+              console.error(`Failed to fetch metadata for ${b.name}:`, e);
+              return null;
+            }
+          })
       );
       
-      setDatasets(fetched.filter(d => d !== null).sort((a, b) => b.timestamp - a.timestamp));
+      const validDatasets = fetched
+        .filter(d => d !== null)
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      
+      console.log(`[DataShel] Loaded ${validDatasets.length} datasets from Shelby`);
+      setDatasets(validDatasets);
     } catch (err) {
       console.error('Error fetching datasets from Shelby:', err);
     } finally {

@@ -12,8 +12,8 @@ const aptosConfig = new AptosConfig({
 });
 const aptosClient = new Aptos(aptosConfig);
 
-// Shelby RPC endpoint
-const SHELBY_RPC_BASE_URL = "https://api.shelbynet.shelby.xyz/shelby/v1/blob";
+// Shelby API base
+const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
 
 const CATEGORY_ICONS = {
   Images:  '🖼',
@@ -36,18 +36,6 @@ export default function DatasetCard({ dataset }) {
   const { addToast } = useToast();
   const [downloading, setDownloading] = useState(false);
 
-  const triggerFileDownload = (blobData, fileName, mimeType) => {
-    const blob = new Blob([blobData], { type: mimeType || 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName || `dataset_${dataset.id}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   const handleDownload = async (e) => {
     e.stopPropagation();
     
@@ -64,7 +52,7 @@ export default function DatasetCard({ dataset }) {
 
     setDownloading(true);
     try {
-      addToast('Requesting wallet signature…', 'success', '🔑');
+      addToast('Requesting payment signature…', 'success', '🔑');
       
       const response = await signAndSubmitTransaction({
         data: {
@@ -82,14 +70,14 @@ export default function DatasetCard({ dataset }) {
       
       addToast(
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span>Payment submitted! Fetching dataset…</span>
+          <span>Payment confirmed! Starting download...</span>
           <a 
             href={`https://explorer.shelby.xyz/txn/${txHash}?network=testnet`} 
             target="_blank" 
             rel="noreferrer"
             style={{ color: 'white', textDecoration: 'underline', fontSize: '0.75rem' }}
           >
-            View on Shelby Explorer →
+            View Transaction →
           </a>
         </div>, 
         'success', 
@@ -97,31 +85,27 @@ export default function DatasetCard({ dataset }) {
       );
       
       // Step 2: Retrieve the data from Shelby Protocol
-      let fileContent = null;
+      const blobPath = dataset.blobPath || `${dataset.uploader}/${dataset.fileName}`;
+      const downloadUrl = `${SHELBY_API_BASE}/v1/blobs/${blobPath}`;
       
-      if (dataset.blobId) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-        try {
-          // Fetch from Shelby: GET /v1/blob/{account}/{blobId}
-          const response = await fetch(`${SHELBY_RPC_BASE_URL}/${dataset.uploader}/${dataset.blobId}`, { signal: controller.signal });
-          clearTimeout(timeoutId);
-          if (!response.ok) throw new Error('Blob not found on Shelby Protocol nodes');
-          fileContent = new Uint8Array(await response.arrayBuffer());
-        } catch (sError) {
-          clearTimeout(timeoutId);
-          console.error('Shelby retrieval failed:', sError);
-          throw new Error(sError.name === 'AbortError' ? 'Shelby retrieval timed out (15s)' : 'Failed to retrieve file from decentralized storage.');
-        }
-      } 
+      console.log('[DataShel] Fetching blob from:', downloadUrl);
       
-      if (fileContent) {
-        triggerFileDownload(fileContent, dataset.fileName || `${dataset.name}.zip`, dataset.fileType);
-        recordDownload(dataset.id);
-        addToast('Download complete! ✓', 'success', '📦');
-      } else {
-        throw new Error('Could not retrieve file content from Shelby.');
-      }
+      const res = await fetch(downloadUrl);
+      if (!res.ok) throw new Error(`Download failed (${res.status}): ${await res.text()}`);
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = dataset.fileName || `dataset_${dataset.id}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      recordDownload(dataset.id);
+      addToast('Download complete! ✓', 'success', '📦');
       
     } catch (error) {
       console.error('Download error:', error);

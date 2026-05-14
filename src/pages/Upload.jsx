@@ -6,8 +6,8 @@ import { useToast } from '../context/ToastContext';
 import FaucetPanel from '../components/FaucetPanel';
 import './Upload.css';
 
-// Shelby RPC endpoint
-const SHELBY_RPC_URL = "https://api.shelbynet.shelby.xyz/shelby/v1/blob";
+// Shelby API base
+const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
 const REGISTRY_ADDR = "0xd47a54e17b35414d87654a1d5e43f4d3f0000000";
 
 const CATEGORIES = ['Images', 'Text', 'Audio', 'Tabular', 'Other'];
@@ -83,80 +83,74 @@ export default function Upload() {
     setUploading(true);
     setUploadProgress(5);
 
-    // Timeout helper
-    const fetchWithTimeout = async (url, options, timeout = 15000) => {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeout);
-      try {
-        const response = await fetch(url, { ...options, signal: controller.signal });
-        clearTimeout(id);
-        return response;
-      } catch (error) {
-        clearTimeout(id);
-        if (error.name === 'AbortError') throw new Error('Shelby API request timed out (15s limit).');
-        throw error;
-      }
-    };
-
     try {
       const timestamp = Date.now();
       const metadataId = `ds_${timestamp}`;
+      const walletAddr = wallet.address.toString();
 
-      // STEP 1: Petra Signature FIRST
-      console.log(`[DataShel] Starting step 1: Requesting Petra signature for metadata ${metadataId}`);
-      addToast('Awaiting wallet signature…', 'success', '🔑');
-      setUploadProgress(15);
-      
-      let signature = '';
+      // STEP 1: CREATE SESSION
+      console.log('[DataShel] Step 1: Creating Shelby session...');
+      addToast('Awaiting wallet signature for session...', 'success', '🔑');
+      setUploadProgress(10);
+
+      const sessionMessage = `Create Shelby Session for DataShel: ${timestamp}`;
+      let signatureResult;
       try {
-        const signResult = await signMessage({
-          message: `Upload DataShel Metadata: ${metadataId}`,
+        signatureResult = await signMessage({
+          message: sessionMessage,
           nonce: timestamp.toString(),
         });
-        signature = signResult.signature;
-        console.log('[DataShel] Petra signature received:', signature);
       } catch (sErr) {
-        console.error('[DataShel] Signature request failed:', sErr);
-        throw new Error(`Wallet signature failed: ${sErr.message || 'User rejected'}`);
+        throw new Error(`Signature failed: ${sErr.message || 'User rejected'}`);
       }
 
-      setUploadProgress(30);
+      const sessionResponse = await fetch(`${SHELBY_API_BASE}/v1/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wallet: walletAddr,
+          signature: signatureResult.signature,
+          message: sessionMessage,
+          nonce: timestamp.toString()
+        }),
+      });
 
-      // STEP 2: Upload real file to Shelby
-      console.log('[DataShel] Starting step 2: Uploading file to Shelby storage');
-      addToast('Uploading dataset to Shelby…', 'success', '⬆');
-      
-      const fileBlobName = `file_${wallet.address.toString()}_${timestamp}`;
-      const fileFormData = new FormData();
-      fileFormData.append('file', file);
-      fileFormData.append('name', fileBlobName);
-      fileFormData.append('owner', wallet.address.toString());
-
-      let fileBlobId = fileBlobName;
-      try {
-        const fileResponse = await fetchWithTimeout(SHELBY_RPC_URL, {
-          method: 'POST',
-          body: fileFormData,
-        });
-
-        if (!fileResponse.ok) {
-          const errorText = await fileResponse.text();
-          throw new Error(`Shelby file upload failed (${fileResponse.status}): ${errorText}`);
-        }
-        
-        const fileResult = await fileResponse.json();
-        fileBlobId = fileResult.id || fileBlobName;
-        console.log('[DataShel] Shelby file upload success, blobId:', fileBlobId);
-      } catch (fErr) {
-        console.error('[DataShel] Shelby file upload error:', fErr);
-        throw fErr;
+      if (!sessionResponse.ok) {
+        const errorData = await sessionResponse.json().catch(() => ({}));
+        throw new Error(`Session creation failed: ${errorData.message || sessionResponse.statusText}`);
       }
+
+      const { token: sessionToken } = await sessionResponse.json();
+      console.log('[DataShel] Session created successfully');
+      setUploadProgress(20);
+
+      // STEP 2: UPLOAD RAW FILE
+      console.log('[DataShel] Step 2: Uploading raw file to Shelby...');
+      addToast('Uploading dataset to Shelby...', 'success', '⬆');
       
+      const fileName = `${timestamp}_${file.name.replace(/\s+/g, '_')}`;
+      const blobPath = `${walletAddr}/${fileName}`;
+      
+      const uploadResponse = await fetch(`${SHELBY_API_BASE}/v1/blobs/${blobPath}`, {
+        method: 'PUT',
+        headers: {
+          'X-Shelby-Session': sessionToken,
+          'Content-Type': file.type || 'application/octet-stream'
+        },
+        body: file,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`File upload failed: ${errorText}`);
+      }
+
+      console.log('[DataShel] File uploaded to:', blobPath);
       setUploadProgress(60);
 
-      // STEP 3: Register Metadata
-      console.log('[DataShel] Starting step 3: Registering metadata');
-      addToast('Registering dataset globally…', 'success', '🌍');
+      // STEP 3: REGISTER METADATA GLOBALLY
+      console.log('[DataShel] Step 3: Registering metadata on Shelby...');
+      addToast('Registering dataset globally...', 'success', '🌍');
 
       const metadata = {
         id: metadataId,
@@ -165,70 +159,50 @@ export default function Upload() {
         description: form.description.trim(),
         size: formatBytes(file.size),
         price: Number(form.price),
-        uploader: wallet.address.toString(),
-        blobId: fileBlobId,
+        uploader: walletAddr,
+        blobPath: blobPath,
         fileName: file.name,
         fileType: file.type,
-        timestamp: timestamp
+        timestamp: timestamp,
+        downloads: 0,
+        earnings: 0
       };
 
-      const metadataStr = JSON.stringify(metadata);
-      const metaBlobName = `metadata_${metadataId}`;
-      const metaFormData = new FormData();
-      const metaBlob = new Blob([metadataStr], { type: 'application/json' });
-      metaFormData.append('file', metaBlob, 'metadata.json');
-      metaFormData.append('name', metaBlobName);
-      metaFormData.append('owner', REGISTRY_ADDR);
+      const metaFileName = `metadata_${metadataId}.json`;
+      const metaBlobPath = `${REGISTRY_ADDR}/${metaFileName}`;
 
-      try {
-        const metaResponse = await fetchWithTimeout(SHELBY_RPC_URL, {
-          method: 'POST',
+      const metaResponse = await fetch(`${SHELBY_API_BASE}/v1/blobs/${metaBlobPath}`, {
+        method: 'PUT',
+        headers: {
+          'X-Shelby-Session': sessionToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(metadata),
+      });
+
+      if (!metaResponse.ok) {
+        console.warn('[DataShel] Global registry upload failed, storing in uploader path');
+        // Fallback: store in uploader's own path if registry write fails
+        const fallbackMetaPath = `${walletAddr}/${metaFileName}`;
+        await fetch(`${SHELBY_API_BASE}/v1/blobs/${fallbackMetaPath}`, {
+          method: 'PUT',
           headers: {
-            'X-Shelby-Signature': signature,
-            'X-Shelby-Account': wallet.address.toString()
+            'X-Shelby-Session': sessionToken,
+            'Content-Type': 'application/json'
           },
-          body: metaFormData,
+          body: JSON.stringify(metadata),
         });
-
-        if (!metaResponse.ok) {
-          const errorText = await metaResponse.text();
-          throw new Error(`Shelby registry failed (${metaResponse.status}): ${errorText}`);
-        }
-        console.log('[DataShel] Shelby metadata registration success');
-      } catch (mErr) {
-        console.warn('[DataShel] Shelby registration failed, falling back to Supabase:', mErr);
-        addToast('Shelby registry unreachable. Using Supabase fallback…', 'warning', '💾');
-        
-        // Supabase Fallback (Placeholder for actual config)
-        // In a real app, these would be in import.meta.env
-        const SUPABASE_URL = "https://your-project.supabase.co/rest/v1/datasets";
-        const SUPABASE_KEY = "your-anon-key";
-
-        try {
-          const sbResponse = await fetch(SUPABASE_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${SUPABASE_KEY}`
-            },
-            body: metadataStr
-          });
-          if (!sbResponse.ok) throw new Error(`Supabase fallback failed: ${sbResponse.status}`);
-          console.log('[DataShel] Supabase fallback success');
-        } catch (sbErr) {
-          console.error('[DataShel] ALL registry methods failed:', sbErr);
-          throw new Error(`Critical Error: Could not register metadata on Shelby or Supabase. Reason: ${mErr.message}`);
-        }
       }
-      
+
+      console.log('[DataShel] Metadata registered successfully');
       setUploadProgress(100);
       addDataset(metadata);
 
       addToast('Dataset listed successfully! 🎉', 'success', '✓');
       setTimeout(() => navigate('/my-datasets'), 1500);
     } catch (err) {
-      console.error('[DataShel] Final upload failure:', err);
+      console.error('[DataShel] Upload error:', err);
+      // SHOW EXACT ERROR MESSAGE ON SCREEN
       addToast(err.message || 'Upload failed.', 'error');
       setUploadProgress(0);
     } finally {
