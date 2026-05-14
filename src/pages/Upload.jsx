@@ -8,6 +8,7 @@ import './Upload.css';
 
 // Shelby RPC endpoint
 const SHELBY_RPC_URL = "https://api.shelbynet.shelby.xyz/shelby/v1/blob";
+const REGISTRY_ADDR = "0xd47a54e17b35414d87654a1d5e43f4d3f0000000";
 
 const CATEGORIES = ['Images', 'Text', 'Audio', 'Tabular', 'Other'];
 
@@ -80,72 +81,91 @@ export default function Upload() {
     if (err) { addToast(err, 'error', '⚠'); return; }
 
     setUploading(true);
-    setUploadProgress(0);
+    setUploadProgress(10);
 
     try {
-      // Step 1: Prepare blob
-      const blobName = `${wallet.address.toString()}_${Date.now()}_${file.name}`;
+      // Step 1: Upload real file to Shelby
+      addToast('Uploading dataset to Shelby storage…', 'success', '⬆');
       
-      let blobId = null;
-      let storageMethod = 'shelby';
+      const fileBlobName = `file_${wallet.address.toString()}_${Date.now()}`;
+      const fileFormData = new FormData();
+      fileFormData.append('file', file);
+      fileFormData.append('name', fileBlobName);
+      fileFormData.append('owner', wallet.address.toString());
 
-      // Step 2: Try Shelby Upload via REST API
-      addToast('Uploading to Shelby storage…', 'success', '⬆');
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('name', blobName);
-        formData.append('owner', wallet.address.toString());
+      const fileResponse = await fetch(SHELBY_RPC_URL, {
+        method: 'POST',
+        body: fileFormData,
+      });
 
-        const response = await fetch(SHELBY_RPC_URL, {
-          method: 'POST',
-          body: formData,
-        });
+      if (!fileResponse.ok) throw new Error(`File upload failed: ${fileResponse.status}`);
+      const fileResult = await fileResponse.json();
+      const fileBlobId = fileResult.id || fileBlobName;
+      
+      setUploadProgress(50);
 
-        if (!response.ok) throw new Error(`Upload failed with status: ${response.status}`);
-        
-        const result = await response.json();
-        blobId = result.id || blobName;
-        setUploadProgress(100);
-      } catch (sError) {
-        console.warn('Shelby REST upload failed, falling back to local:', sError);
-        storageMethod = 'local';
-      }
-
-      // Fallback to localStorage if Shelby failed
-      if (storageMethod === 'local') {
-        addToast('Shelby RPC unreachable. Using local storage fallback…', 'warning', '💾');
-        setUploadProgress(50);
-        const reader = new FileReader();
-        const base64 = await new Promise((resolve) => {
-          reader.onload = () => resolve(reader.result);
-          reader.readAsDataURL(file);
-        });
-        blobId = `local_${Date.now()}`;
-        localStorage.setItem(`ds_blob_${blobId}`, base64);
-        setUploadProgress(100);
-      }
-
-      // Step 3: Register in DataContext (simulates on-chain metadata)
-      const ds = addDataset({
+      // Step 2: Sign and Upload Metadata JSON to Shelby Registry
+      addToast('Signing metadata for registry…', 'success', '🔑');
+      
+      const metadata = {
+        id: `ds_${Date.now()}`,
         name: form.name.trim(),
         category: form.category,
         description: form.description.trim(),
         size: formatBytes(file.size),
         price: Number(form.price),
         uploader: wallet.address.toString(),
-        uploads: wallet.address.toString(),
-        blobId: blobId,
-        storageMethod: storageMethod,
+        blobId: fileBlobId,
         fileName: file.name,
-        fileType: file.type
+        fileType: file.type,
+        timestamp: Date.now()
+      };
+
+      const metadataStr = JSON.stringify(metadata);
+      
+      // Request wallet signature for authentication
+      let signature = '';
+      try {
+        const signResult = await window.aptos.signMessage({
+          message: `Upload DataShel Metadata: ${metadata.id}`,
+          nonce: metadata.timestamp.toString(),
+        });
+        signature = signResult.signature;
+      } catch (sErr) {
+        throw new Error('Wallet signature required to list dataset.');
+      }
+
+      setUploadProgress(75);
+      addToast('Registering dataset globally…', 'success', '🌍');
+
+      const metaBlobName = `metadata_${metadata.id}`;
+      const metaFormData = new FormData();
+      const metaBlob = new Blob([metadataStr], { type: 'application/json' });
+      metaFormData.append('file', metaBlob, 'metadata.json');
+      metaFormData.append('name', metaBlobName);
+      metaFormData.append('owner', REGISTRY_ADDR); // Store in global registry
+
+      const metaResponse = await fetch(SHELBY_RPC_URL, {
+        method: 'POST',
+        headers: {
+          'X-Shelby-Signature': signature,
+          'X-Shelby-Account': wallet.address.toString()
+        },
+        body: metaFormData,
       });
 
-      addToast('Dataset listed successfully! 🎉', 'success', '✓');
+      if (!metaResponse.ok) throw new Error(`Metadata registration failed: ${metaResponse.status}`);
+      
+      setUploadProgress(100);
+
+      // Add to local state for immediate feedback
+      addDataset(metadata);
+
+      addToast('Dataset listed successfully on Shelby Protocol! 🎉', 'success', '✓');
       setTimeout(() => navigate('/my-datasets'), 1500);
     } catch (err) {
-      console.error('Upload error:', err);
-      addToast('Upload failed. Please try again.', 'error');
+      console.error('Shelby Upload error:', err);
+      addToast(err.message || 'Upload failed. Please try again.', 'error');
       setUploadProgress(0);
     } finally {
       setUploading(false);

@@ -6,11 +6,12 @@ import './Browse.css';
 const CATEGORIES = ['All', 'Images', 'Text', 'Audio', 'Tabular', 'Other'];
 
 export default function Browse() {
-  const { datasets } = useData();
+  const { datasets, loading } = useData();
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
   const filtered = useMemo(() => {
+    if (!datasets) return [];
     return datasets.filter(ds => {
       const matchCat = activeCategory === 'All' || ds.category === activeCategory;
       const matchQ   = !query || ds.name.toLowerCase().includes(query.toLowerCase())
@@ -73,7 +74,12 @@ export default function Browse() {
         </div>
 
         {/* Results */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="loading-state">
+            <span className="spinner" />
+            <p>Fetching datasets from Shelby Protocol…</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">🔍</div>
             <h3>No datasets found</h3>

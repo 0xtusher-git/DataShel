@@ -96,40 +96,27 @@ export default function DatasetCard({ dataset }) {
         '💰'
       );
       
-      // Step 2: Retrieve the data
+      // Step 2: Retrieve the data from Shelby Protocol
       let fileContent = null;
       
-      if (dataset.storageMethod === 'shelby' && dataset.blobId) {
+      if (dataset.blobId) {
         try {
+          // Fetch from Shelby: GET /v1/blob/{account}/{blobId}
           const response = await fetch(`${SHELBY_RPC_BASE_URL}/${dataset.uploader}/${dataset.blobId}`);
-          if (!response.ok) throw new Error('Blob not found on Shelby RPC');
+          if (!response.ok) throw new Error('Blob not found on Shelby Protocol nodes');
           fileContent = new Uint8Array(await response.arrayBuffer());
         } catch (sError) {
-          console.warn('Shelby REST retrieval failed, checking local:', sError);
+          console.error('Shelby retrieval failed:', sError);
+          throw new Error('Failed to retrieve file from decentralized storage.');
         }
       } 
       
-      if (!fileContent && dataset.blobId) {
-        // Check local storage if Shelby retrieval failed or wasn't used
-        const base64 = localStorage.getItem(`ds_blob_${dataset.blobId}`);
-        if (base64) {
-          const res = await fetch(base64);
-          fileContent = new Uint8Array(await res.arrayBuffer());
-        }
-      }
-      
-      if (!fileContent) {
-        // Mock download for seed data or lost files
-        await new Promise(r => setTimeout(r, 1000));
-        fileContent = new TextEncoder().encode("This is a demo dataset from DataShel Shelbynet Prototype.");
-      }
-
       if (fileContent) {
         triggerFileDownload(fileContent, dataset.fileName || `${dataset.name}.zip`, dataset.fileType);
         recordDownload(dataset.id);
         addToast('Download complete! ✓', 'success', '📦');
       } else {
-        throw new Error('Could not retrieve file content');
+        throw new Error('Could not retrieve file content from Shelby.');
       }
       
     } catch (error) {
