@@ -1,80 +1,66 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useWallet as useAptosWallet } from '@aptos-labs/wallet-adapter-react';
 
 const WalletContext = createContext(null);
 
 export function WalletProvider({ children }) {
-  const [wallet, setWallet] = useState(null); // { address, network }
-  const [connecting, setConnecting] = useState(false);
-  const [error, setError] = useState(null);
-  const [isDetected, setIsDetected] = useState(typeof window !== 'undefined' && !!window.aptos);
+  const { 
+    connect: aptosConnect, 
+    disconnect: aptosDisconnect, 
+    account, 
+    network: aptosNetwork, 
+    connected,
+    connecting: aptosConnecting,
+    wallet: currentWallet
+  } = useAptosWallet();
 
-  const checkNetwork = async () => {
-    try {
-      if (window.aptos) {
-        const network = await window.aptos.network();
-        // Handle different network return formats (Petra usually returns a string or object)
-        const netName = typeof network === 'string' ? network : network?.name;
-        return netName;
+  const [wallet, setWallet] = useState(null);
+  const [error, setError] = useState(null);
+  const [isDetected, setIsDetected] = useState(true);
+
+  // Sync official adapter state with our local context
+  useEffect(() => {
+    if (connected && account) {
+      const netName = aptosNetwork?.name;
+      const isWrong = netName && netName.toLowerCase() !== 'shelbynet';
+      
+      if (isWrong) {
+        setError(`Wrong network: ${netName}. Please switch to Shelbynet in Petra settings.`);
+      } else {
+        setError(null);
       }
-    } catch (e) {
-      console.warn('Network check failed', e);
+
+      setWallet({
+        address: account.address,
+        publicKey: account.publicKey,
+        network: netName || 'Shelbynet',
+        isWrongNetwork: isWrong
+      });
+    } else {
+      setWallet(null);
     }
-    return null;
-  };
+  }, [connected, account, aptosNetwork]);
 
   const connect = useCallback(async () => {
-    setConnecting(true);
     setError(null);
     try {
-      if (typeof window !== 'undefined' && window.aptos) {
-        // Step 1: Connect
-        await window.aptos.connect();
-        
-        // Step 2: Get account
-        const acct = await window.aptos.account();
-        
-        // Step 3: Check network
-        const network = await checkNetwork();
-        
-        if (network && network.toLowerCase() !== 'shelbynet') {
-          setError(`Wrong network: ${network}. Please switch to Shelbynet in Petra settings.`);
-          setWallet({
-            address: acct.address,
-            publicKey: acct.publicKey,
-            network: network,
-            isWrongNetwork: true
-          });
-          return false;
-        }
-
-        setWallet({
-          address: acct.address,
-          publicKey: acct.publicKey,
-          network: network || 'Shelbynet',
-          isWrongNetwork: false
-        });
-        return true;
-      } else {
-        setError('Petra wallet not detected. Please install it.');
-        setIsDetected(false);
-        return false;
-      }
+      // The official adapter handles detection
+      await aptosConnect('Petra');
+      return true;
     } catch (err) {
       console.error('Wallet connection failed:', err);
       setError(err.message || 'Connection failed. Please try again.');
       return false;
-    } finally {
-      setConnecting(false);
     }
-  }, []);
+  }, [aptosConnect]);
 
   const disconnect = useCallback(async () => {
     try {
-      if (window.aptos) await window.aptos.disconnect();
+      await aptosDisconnect();
     } catch (_) {}
     setWallet(null);
     setError(null);
-  }, []);
+  }, [aptosDisconnect]);
 
   const truncate = (addr) => {
     if (!addr) return '';
@@ -84,7 +70,7 @@ export function WalletProvider({ children }) {
   return (
     <WalletContext.Provider value={{ 
       wallet, 
-      connecting, 
+      connecting: aptosConnecting, 
       connect, 
       disconnect, 
       truncate, 
