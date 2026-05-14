@@ -1,0 +1,107 @@
+.faucet-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--pink-border);
+  border-radius: var(--radius-card);
+  padding: 24px;
+}
+
+.faucet-header {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.faucet-icon {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  background: var(--pink-dim);
+  border: 1px solid var(--pink-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.faucet-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.faucet-sub {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.faucet-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.faucet-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: rgba(255,105,180,0.04);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: border-color var(--transition);
+}
+.faucet-step:hover { border-color: rgba(255,105,180,0.3); }
+
+.step-num {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--pink-dim);
+  border: 1px solid var(--pink-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--pink);
+  flex-shrink: 0;
+}
+
+.step-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 8px;
+}
+
+.step-label {
+  font-size: 0.83rem;
+  color: var(--white);
+  font-weight: 500;
+}
+
+.step-link {
+  font-size: 0.77rem;
+  color: var(--pink-muted);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--transition);
+  white-space: nowrap;
+}
+.step-link:hover { color: var(--pink); }
+.step-link.faucet-cta { color: var(--pink); }
+
+.faucet-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 16px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  padding: 10px 12px;
+  background: rgba(255,105,180,0.04);
+  border-radius: 4px;
+}
+
+.compact .faucet-steps { gap: 8px; }

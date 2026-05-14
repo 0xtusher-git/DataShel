@@ -1,0 +1,349 @@
+.upload-page { }
+
+.upload-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .upload-layout {
+    grid-template-columns: 1fr;
+  }
+  .upload-sidebar { order: -1; }
+}
+
+/* ── Step Indicators ── */
+.upload-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 24px;
+}
+.upload-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.upload-step-num {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+.upload-step.active .upload-step-num {
+  border-color: var(--pink);
+  background: var(--pink-dim);
+  color: var(--pink);
+}
+.upload-step.done .upload-step-num {
+  border-color: var(--pink);
+  background: var(--pink);
+  color: #1a0f0f;
+}
+.upload-step-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.upload-step.active .upload-step-label,
+.upload-step.done .upload-step-label {
+  color: var(--white);
+}
+.upload-step-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  margin: 0 10px;
+}
+
+/* ── Upload Card ── */
+.upload-card { }
+.upload-card-header { margin-bottom: 24px; }
+.upload-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.upload-sub {
+  font-size: 0.83rem;
+  color: var(--text-dim);
+}
+
+/* Wallet connected bar */
+.wallet-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--pink-dim);
+  border: 1px solid var(--pink-border);
+  border-radius: var(--radius-btn);
+  margin-bottom: 20px;
+}
+.wallet-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+.wallet-info-addr {
+  font-family: 'Inter', monospace;
+  font-size: 0.82rem;
+  color: var(--pink-muted);
+  font-weight: 500;
+  flex: 1;
+}
+.wallet-info-network {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* ── Connect prompt ── */
+.connect-prompt {
+  text-align: center;
+  padding: 32px 16px;
+}
+.connect-prompt-icon {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+}
+.connect-prompt h3 {
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+}
+.connect-prompt p {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  max-width: 340px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+.connect-hint {
+  margin-top: 16px !important;
+  font-size: 0.8rem !important;
+}
+
+/* ── Drop Zone ── */
+.drop-zone {
+  border: 2px dashed var(--pink-border);
+  border-radius: var(--radius-card);
+  background: rgba(255,105,180,0.03);
+  cursor: pointer;
+  transition: all var(--transition);
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.drop-zone:hover,
+.drop-zone:focus-visible {
+  border-color: var(--pink);
+  background: var(--pink-dim);
+  outline: none;
+}
+.drop-zone.drag-over {
+  border-color: var(--pink);
+  background: rgba(255,105,180,0.1);
+  transform: scale(1.01);
+}
+.drop-zone.has-file {
+  border-style: solid;
+  border-color: rgba(255,105,180,0.4);
+}
+
+.drop-zone-idle {
+  text-align: center;
+  padding: 28px 20px;
+}
+.drop-zone-icon {
+  width: 52px; height: 52px;
+  border-radius: 12px;
+  background: var(--pink-dim);
+  border: 1px solid var(--pink-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+.drop-zone-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 5px;
+}
+.drop-zone-hint {
+  font-size: 0.76rem;
+  color: var(--text-dim);
+}
+
+.drop-zone-file {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  width: 100%;
+}
+.drop-zone-file-icon { font-size: 1.8rem; }
+.drop-zone-filename {
+  font-size: 0.87rem;
+  font-weight: 600;
+  color: var(--white);
+  word-break: break-all;
+}
+.drop-zone-filesize {
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.drop-zone-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color var(--transition);
+}
+.drop-zone-remove:hover { color: var(--pink); }
+
+/* ── Price input ── */
+.price-input-wrap {
+  display: flex;
+  align-items: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  overflow: hidden;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.price-input-wrap:focus-within {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3px rgba(255,105,180,0.12);
+}
+.price-prefix,
+.price-suffix {
+  padding: 11px 12px;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  font-weight: 600;
+  background: rgba(255,105,180,0.06);
+  white-space: nowrap;
+}
+.price-input {
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  flex: 1;
+}
+.price-hint {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* ── Upload Progress ── */
+.upload-progress-wrap {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: var(--pink-dim);
+  border: 1px solid var(--pink-border);
+  border-radius: 6px;
+}
+.upload-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.upload-progress-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--pink-muted);
+}
+.upload-progress-pct {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--pink);
+}
+.upload-progress-bar {
+  height: 4px;
+  background: rgba(255,105,180,0.15);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.upload-progress-fill {
+  height: 100%;
+  background: var(--pink);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── Faucet prompt link ── */
+.faucet-prompt-text {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--pink);
+  cursor: pointer;
+  font-family: var(--font-main);
+  font-size: inherit;
+  font-weight: 600;
+  padding: 0;
+  text-decoration: none;
+  transition: opacity var(--transition);
+}
+.link-btn:hover { opacity: 0.8; }
+
+/* ── Sidebar ── */
+.sidebar-info-card { }
+.sidebar-info-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+.sidebar-info-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sidebar-info-list li {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+  padding-left: 14px;
+  position: relative;
+}
+.sidebar-info-list li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--pink);
+  font-size: 0.7rem;
+}

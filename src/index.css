@@ -1,0 +1,518 @@
+/* ============================================
+   DataShel – Global Design System
+   Shelby Protocol Marketplace
+   ============================================ */
+
+/* ---------- Reset & Base ---------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:          #1a0f0f;
+  --bg-card:     #2a1a1a;
+  --bg-input:    #200e0e;
+  --pink:        #FF69B4;
+  --pink-mid:    #f472b6;
+  --pink-muted:  #f9a8d4;
+  --pink-dim:    rgba(255, 105, 180, 0.12);
+  --pink-border: rgba(255, 105, 180, 0.20);
+  --pink-hover:  rgba(255, 105, 180, 0.30);
+  --white:       #ffffff;
+  --muted:       #f9a8d4;
+  --text-dim:    rgba(249, 168, 212, 0.55);
+  --border:      rgba(255, 105, 180, 0.20);
+  --radius-card: 8px;
+  --radius-btn:  4px;
+  --font-main:   'Space Grotesk', 'Inter', sans-serif;
+  --transition:  0.2s ease;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg);
+  color: var(--white);
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Scrollbar ---------- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: rgba(255,105,180,0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--pink); }
+
+/* ---------- Typography ---------- */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-main);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--white);
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ---------- Utility Classes ---------- */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: var(--radius-btn);
+  font-family: var(--font-main);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--pink);
+  color: #1a0f0f;
+}
+.btn-primary:hover {
+  background: #ff85c2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(255,105,180,0.35);
+}
+.btn-primary:active { transform: translateY(0); }
+
+.btn-outline {
+  background: transparent;
+  color: var(--pink);
+  border: 1px solid var(--pink);
+}
+.btn-outline:hover {
+  background: var(--pink-dim);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+
+.btn-lg {
+  padding: 14px 32px;
+  font-size: 1rem;
+}
+
+.btn-sm {
+  padding: 7px 14px;
+  font-size: 0.8rem;
+}
+
+.btn-full { width: 100%; justify-content: center; }
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 24px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.card:hover {
+  border-color: rgba(255,105,180,0.40);
+  box-shadow: 0 4px 24px rgba(255,105,180,0.08);
+}
+
+/* ---------- Tags / Pills ---------- */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--pink-dim);
+  color: var(--pink);
+  border: 1px solid var(--pink-border);
+}
+
+/* ---------- Inputs ---------- */
+.input, .select, .textarea {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  color: var(--white);
+  font-family: var(--font-main);
+  font-size: 0.9rem;
+  padding: 11px 14px;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.input::placeholder, .textarea::placeholder {
+  color: var(--text-dim);
+}
+.input:focus, .select:focus, .textarea:focus {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3px rgba(255,105,180,0.12);
+}
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23FF69B4' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  cursor: pointer;
+}
+.select option { background: var(--bg-card); }
+.textarea { resize: vertical; min-height: 100px; }
+
+/* ---------- Form Groups ---------- */
+.form-group { margin-bottom: 20px; }
+.form-group label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+
+/* ---------- Divider ---------- */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 24px 0;
+}
+
+/* ---------- Stat Bar ---------- */
+.stat-bar {
+  display: flex;
+  gap: 40px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--white);
+  font-family: var(--font-main);
+}
+.stat-label {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.stat-dot {
+  color: var(--pink-border);
+  font-size: 1.4rem;
+}
+
+/* ---------- Chip Filters ---------- */
+.chip-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chip {
+  padding: 7px 16px;
+  border-radius: 99px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-main);
+  transition: all var(--transition);
+  letter-spacing: 0.02em;
+}
+.chip:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+.chip.active {
+  background: var(--pink);
+  color: #1a0f0f;
+  border-color: var(--pink);
+}
+
+/* ---------- Badge (dataset type icon) ---------- */
+.badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--pink-dim);
+  border: 1px solid var(--pink-border);
+  font-size: 1rem;
+}
+
+/* ---------- Loading Spinner ---------- */
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--pink-border);
+  border-top-color: var(--pink);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Toast ---------- */
+.toast-container {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+}
+.toast {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 18px;
+  font-size: 0.85rem;
+  color: var(--white);
+  min-width: 260px;
+  animation: slideIn 0.25s ease;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.toast.success { border-color: var(--pink); }
+.toast.error   { border-color: #e55; }
+.toast-icon { font-size: 1.1rem; flex-shrink: 0; }
+@keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(20,8,8,0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 480px;
+  width: 100%;
+  animation: scaleIn 0.2s ease;
+}
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: color var(--transition);
+}
+.modal-close:hover { color: var(--pink); }
+
+/* ---------- Wallet Address ---------- */
+.wallet-addr {
+  font-family: 'Inter', monospace;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+/* ---------- Section Headers ---------- */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* ---------- Empty State ---------- */
+.empty-state {
+  text-align: center;
+  padding: 64px 24px;
+}
+.empty-state-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+.empty-state h3 {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+.empty-state p {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  max-width: 320px;
+  margin: 0 auto 20px;
+}
+
+/* ---------- Dataset Grid ---------- */
+.dataset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+@media (max-width: 1024px) {
+  .dataset-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .dataset-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- Dataset Card ---------- */
+.dataset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  cursor: pointer;
+}
+.dataset-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dataset-card-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--white);
+  line-height: 1.3;
+  flex: 1;
+}
+.dataset-card-desc {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.55;
+}
+.dataset-card-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+.dataset-card-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dataset-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.dataset-price {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--pink);
+}
+.dataset-price span {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+
+/* ---------- Page Layout ---------- */
+.page {
+  padding: 40px 0 80px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+  .container { padding: 0 16px; }
+  .stat-bar { gap: 24px; }
+  .btn-lg { padding: 12px 24px; }
+}
+
+/* ---------- App Shell ---------- */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1;
+}
+
+/* ---------- Number input arrows hide ---------- */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] { -moz-appearance: textfield; }
+
+/* ---------- Selection ---------- */
+::selection {
+  background: rgba(255, 105, 180, 0.25);
+  color: var(--white);
+}
