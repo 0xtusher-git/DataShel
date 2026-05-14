@@ -5,8 +5,11 @@ import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import './DatasetCard.css';
 
-// Initialize Aptos client for Shelbynet (Aptos Testnet based)
-const aptosConfig = new AptosConfig({ network: Network.TESTNET });
+// Initialize Aptos client for Shelbynet
+const aptosConfig = new AptosConfig({ 
+  fullnode: "https://api.shelbynet.shelby.xyz/v1",
+  network: Network.CUSTOM
+});
 const aptosClient = new Aptos(aptosConfig);
 
 const CATEGORY_ICONS = {
@@ -59,16 +62,33 @@ export default function DatasetCard({ dataset }) {
         }
       });
 
-      addToast('Transaction submitted. Confirming…', 'success', '⛓');
+      // User approved! response contains hash.
+      const txHash = response.hash;
+      console.log('Transaction submitted:', txHash);
       
-      // Wait for transaction confirmation
-      await aptosClient.waitForTransaction({ transactionHash: response.hash });
+      // On Shelbynet, we trust the hash and proceed immediately to skip confirmation delays
+      addToast(
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span>Payment submitted successfully!</span>
+          <a 
+            href={`https://explorer.shelby.xyz/txn/${txHash}?network=testnet`} 
+            target="_blank" 
+            rel="noreferrer"
+            style={{ color: 'white', textDecoration: 'underline', fontSize: '0.75rem' }}
+          >
+            View on Shelby Explorer →
+          </a>
+        </div>, 
+        'success', 
+        '💰'
+      );
       
       recordDownload(dataset.id);
-      addToast(`Payment of ${dataset.price} ShelbyUSD confirmed!`, 'success', '💰');
       
-      // Simulate file download start
-      console.log('Starting download for CID:', dataset.id);
+      // Simulate file download start immediately
+      addToast('Download starting…', 'success', '⬇');
+      console.log('Starting download for dataset:', dataset.name);
+      
     } catch (error) {
       console.error('Download error:', error);
       if (error.message?.includes('rejected')) {
