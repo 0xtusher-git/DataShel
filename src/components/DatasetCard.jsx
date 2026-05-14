@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
-import { ShelbyClient, ShelbyNetwork } from '@shelby-protocol/sdk';
 import { useWallet } from '../context/WalletContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
@@ -13,18 +12,8 @@ const aptosConfig = new AptosConfig({
 });
 const aptosClient = new Aptos(aptosConfig);
 
-// Initialize Shelby Client
-let shelbyClient = null;
-try {
-  shelbyClient = new ShelbyClient({
-    network: ShelbyNetwork.SHELBYNET,
-    shelby: {
-      rpc: { baseUrl: "https://api.shelbynet.shelby.xyz/shelby" }
-    }
-  });
-} catch (e) {
-  console.error('Failed to init ShelbyClient:', e);
-}
+// Shelby RPC endpoint
+const SHELBY_RPC_BASE_URL = "https://api.shelbynet.shelby.xyz/shelby/v1/blob";
 
 const CATEGORY_ICONS = {
   Images:  '🖼',
@@ -110,27 +99,28 @@ export default function DatasetCard({ dataset }) {
       // Step 2: Retrieve the data
       let fileContent = null;
       
-      if (dataset.storageMethod === 'shelby' && shelbyClient && dataset.blobId) {
+      if (dataset.storageMethod === 'shelby' && dataset.blobId) {
         try {
-          const blob = await shelbyClient.rpc.getBlob({
-            account: dataset.uploader,
-            blobName: dataset.blobId
-          });
-          fileContent = await blob.getData(); // ShelbyBlob.getData returns Uint8Array
+          const response = await fetch(`${SHELBY_RPC_BASE_URL}/${dataset.uploader}/${dataset.blobId}`);
+          if (!response.ok) throw new Error('Blob not found on Shelby RPC');
+          fileContent = new Uint8Array(await response.arrayBuffer());
         } catch (sError) {
-          console.error('Shelby retrieval failed:', sError);
-          addToast('Shelby RPC error. Check console.', 'error');
+          console.warn('Shelby REST retrieval failed, checking local:', sError);
         }
-      } else if (dataset.storageMethod === 'local' && dataset.blobId) {
-        // Fallback for local files
+      } 
+      
+      if (!fileContent && dataset.blobId) {
+        // Check local storage if Shelby retrieval failed or wasn't used
         const base64 = localStorage.getItem(`ds_blob_${dataset.blobId}`);
         if (base64) {
           const res = await fetch(base64);
           fileContent = new Uint8Array(await res.arrayBuffer());
         }
-      } else {
-        // Mock download for seed data
-        await new Promise(r => setTimeout(r, 1500));
+      }
+      
+      if (!fileContent) {
+        // Mock download for seed data or lost files
+        await new Promise(r => setTimeout(r, 1000));
         fileContent = new TextEncoder().encode("This is a demo dataset from DataShel Shelbynet Prototype.");
       }
 

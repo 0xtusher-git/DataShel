@@ -1,24 +1,13 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShelbyClient, ShelbyNetwork } from '@shelby-protocol/sdk';
 import { useWallet } from '../context/WalletContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import FaucetPanel from '../components/FaucetPanel';
 import './Upload.css';
 
-// Initialize Shelby Client
-let shelbyClient = null;
-try {
-  shelbyClient = new ShelbyClient({
-    network: ShelbyNetwork.SHELBYNET,
-    shelby: {
-      rpc: { baseUrl: "https://api.shelbynet.shelby.xyz/shelby" } // Correct RPC from search
-    }
-  });
-} catch (e) {
-  console.error('Failed to init ShelbyClient:', e);
-}
+// Shelby RPC endpoint
+const SHELBY_RPC_URL = "https://api.shelbynet.shelby.xyz/shelby/v1/blob";
 
 const CATEGORIES = ['Images', 'Text', 'Audio', 'Tabular', 'Other'];
 
@@ -95,38 +84,37 @@ export default function Upload() {
 
     try {
       // Step 1: Prepare blob
-      const blobName = `${wallet.address.toString()}/${Date.now()}_${file.name}`;
-      const fileData = new Uint8Array(await file.arrayBuffer());
+      const blobName = `${wallet.address.toString()}_${Date.now()}_${file.name}`;
       
       let blobId = null;
       let storageMethod = 'shelby';
 
-      // Step 2: Try Shelby Upload
-      if (shelbyClient) {
-        addToast('Uploading to Shelby storage…', 'success', '⬆');
-        try {
-          await shelbyClient.rpc.putBlob({
-            account: wallet.address.toString(),
-            blobName: blobName,
-            blobData: fileData,
-            onProgress: (p) => {
-              const pct = Math.floor((p.uploadedBytes / p.totalBytes) * 100);
-              setUploadProgress(pct);
-            }
-          });
-          blobId = blobName;
-          setUploadProgress(100);
-        } catch (sError) {
-          console.error('Shelby RPC upload failed, falling back to base64:', sError);
-          storageMethod = 'local';
-        }
-      } else {
+      // Step 2: Try Shelby Upload via REST API
+      addToast('Uploading to Shelby storage…', 'success', '⬆');
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('name', blobName);
+        formData.append('owner', wallet.address.toString());
+
+        const response = await fetch(SHELBY_RPC_URL, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) throw new Error(`Upload failed with status: ${response.status}`);
+        
+        const result = await response.json();
+        blobId = result.id || blobName;
+        setUploadProgress(100);
+      } catch (sError) {
+        console.warn('Shelby REST upload failed, falling back to local:', sError);
         storageMethod = 'local';
       }
 
       // Fallback to localStorage if Shelby failed
       if (storageMethod === 'local') {
-        addToast('Shelby RPC offline. Using local storage fallback…', 'warning', '💾');
+        addToast('Shelby RPC unreachable. Using local storage fallback…', 'warning', '💾');
         setUploadProgress(50);
         const reader = new FileReader();
         const base64 = await new Promise((resolve) => {
