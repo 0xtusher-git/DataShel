@@ -1,8 +1,13 @@
 import { useState } from 'react';
+import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
 import { useWallet } from '../context/WalletContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import './DatasetCard.css';
+
+// Initialize Aptos client for Shelbynet (Aptos Testnet based)
+const aptosConfig = new AptosConfig({ network: Network.TESTNET });
+const aptosClient = new Aptos(aptosConfig);
 
 const CATEGORY_ICONS = {
   Images:  '🖼',
@@ -20,25 +25,57 @@ function truncateAddr(addr) {
 }
 
 export default function DatasetCard({ dataset }) {
-  const { wallet, connect } = useWallet();
+  const { wallet, connect, signAndSubmitTransaction } = useWallet();
   const { recordDownload } = useData();
   const { addToast } = useToast();
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async (e) => {
     e.stopPropagation();
+    
     if (!wallet) {
       const ok = await connect();
       if (!ok) return;
     }
+
+    // Block owner from downloading their own dataset
+    if (wallet.address.toString() === dataset.uploader) {
+      addToast('You cannot download your own dataset', 'error', '🔒');
+      return;
+    }
+
     setDownloading(true);
     try {
-      // Simulate Shelby storage retrieval + Aptos payment
-      await new Promise(r => setTimeout(r, 1800));
+      addToast('Requesting wallet signature…', 'success', '🔑');
+      
+      const response = await signAndSubmitTransaction({
+        data: {
+          function: "0x1::aptos_account::transfer",
+          typeArguments: [],
+          functionArguments: [
+            dataset.uploader, // recipient (owner)
+            (dataset.price * 100000000).toString() // amount in octas
+          ]
+        }
+      });
+
+      addToast('Transaction submitted. Confirming…', 'success', '⛓');
+      
+      // Wait for transaction confirmation
+      await aptosClient.waitForTransaction({ transactionHash: response.hash });
+      
       recordDownload(dataset.id);
-      addToast(`Payment of ${dataset.price} ShelbyUSD sent · Download starting`, 'success', '⬇');
-    } catch {
-      addToast('Transaction failed. Please try again.', 'error');
+      addToast(`Payment of ${dataset.price} ShelbyUSD confirmed!`, 'success', '💰');
+      
+      // Simulate file download start
+      console.log('Starting download for CID:', dataset.id);
+    } catch (error) {
+      console.error('Download error:', error);
+      if (error.message?.includes('rejected')) {
+        addToast('Transaction cancelled', 'error', '✕');
+      } else {
+        addToast(`Transaction failed: ${error.message || 'Unknown error'}`, 'error');
+      }
     } finally {
       setDownloading(false);
     }
