@@ -12,7 +12,8 @@ export function WalletProvider({ children }) {
     connected,
     connecting: aptosConnecting,
     wallet: currentWallet,
-    signAndSubmitTransaction
+    signAndSubmitTransaction,
+    signMessage
   } = useAptosWallet();
 
   const [wallet, setWallet] = useState(null);
@@ -87,7 +88,8 @@ export function WalletProvider({ children }) {
       truncate, 
       error, 
       isDetected,
-      signAndSubmitTransaction
+      signAndSubmitTransaction,
+      signMessage
     }}>
       {children}
     </WalletContext.Provider>

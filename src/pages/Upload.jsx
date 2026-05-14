@@ -20,7 +20,7 @@ const STEPS = [
 
 export default function Upload() {
   const navigate = useNavigate();
-  const { wallet, connect, connecting, truncate } = useWallet();
+  const { wallet, connect, connecting, truncate, signMessage } = useWallet();
   const { addDataset } = useData();
   const { addToast } = useToast();
 
@@ -109,7 +109,7 @@ export default function Upload() {
       
       let signature = '';
       try {
-        const signResult = await window.aptos.signMessage({
+        const signResult = await signMessage({
           message: `Upload DataShel Metadata: ${metadataId}`,
           nonce: timestamp.toString(),
         });
