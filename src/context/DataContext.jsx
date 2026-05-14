@@ -12,21 +12,29 @@ export function DataProvider({ children }) {
   // Fetch all dataset metadata from Shelby
   const fetchAllDatasets = async () => {
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
     try {
       // In Shelby, we fetch the list of blobs for the registry account
-      // This is a simplified fetch() call as requested
-      const listResponse = await fetch(`${SHELBY_RPC_BASE_URL}s/${REGISTRY_ADDR}`);
+      const listResponse = await fetch(`${SHELBY_RPC_BASE_URL}s/${REGISTRY_ADDR}`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
       if (!listResponse.ok) throw new Error('Failed to fetch registry');
       
-      const blobList = await listResponse.json(); // Array of blob metadata { id, name, ... }
+      const blobList = await listResponse.json();
       
       // Fetch each metadata JSON
       const fetched = await Promise.all(
         blobList.filter(b => b.name.startsWith('metadata_')).map(async (b) => {
+          const mController = new AbortController();
+          const mTimeoutId = setTimeout(() => mController.abort(), 10000); // 10s per metadata
           try {
-            const res = await fetch(`${SHELBY_RPC_BASE_URL}/${REGISTRY_ADDR}/${b.name}`);
+            const res = await fetch(`${SHELBY_RPC_BASE_URL}/${REGISTRY_ADDR}/${b.name}`, { signal: mController.signal });
+            clearTimeout(mTimeoutId);
             return await res.json();
           } catch (e) {
+            clearTimeout(mTimeoutId);
             console.error(`Failed to fetch metadata for ${b.name}:`, e);
             return null;
           }

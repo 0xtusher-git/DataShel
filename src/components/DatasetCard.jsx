@@ -100,14 +100,18 @@ export default function DatasetCard({ dataset }) {
       let fileContent = null;
       
       if (dataset.blobId) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
         try {
           // Fetch from Shelby: GET /v1/blob/{account}/{blobId}
-          const response = await fetch(`${SHELBY_RPC_BASE_URL}/${dataset.uploader}/${dataset.blobId}`);
+          const response = await fetch(`${SHELBY_RPC_BASE_URL}/${dataset.uploader}/${dataset.blobId}`, { signal: controller.signal });
+          clearTimeout(timeoutId);
           if (!response.ok) throw new Error('Blob not found on Shelby Protocol nodes');
           fileContent = new Uint8Array(await response.arrayBuffer());
         } catch (sError) {
+          clearTimeout(timeoutId);
           console.error('Shelby retrieval failed:', sError);
-          throw new Error('Failed to retrieve file from decentralized storage.');
+          throw new Error(sError.name === 'AbortError' ? 'Shelby retrieval timed out (15s)' : 'Failed to retrieve file from decentralized storage.');
         }
       } 
       
