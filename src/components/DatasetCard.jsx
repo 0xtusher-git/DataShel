@@ -43,6 +43,9 @@ export default function DatasetCard({ dataset }) {
 
     setDownloading(true);
     try {
+      if (!supabase) {
+        throw new Error('Supabase client is not initialized. Please check backend configuration.');
+      }
       addToast('Requesting payment signature…', 'success', '🔑');
       
       const responseTx = await signAndSubmitTransaction({

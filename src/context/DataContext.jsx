@@ -13,6 +13,9 @@ export function DataProvider({ children }) {
     setLoading(true);
     
     try {
+      if (!supabase) {
+        throw new Error('Supabase client is not initialized. Please check your environment variables.');
+      }
       console.log('[DataShel] Fetching datasets from Supabase...');
       const { data, error } = await supabase
         .from('datasets')

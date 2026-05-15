@@ -83,6 +83,9 @@ export default function Upload() {
     setUploadProgress(5);
 
     try {
+      if (!supabase) {
+        throw new Error('Supabase client is not initialized. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+      }
       const timestamp = Date.now();
       const metadataId = `ds_${timestamp}`;
       const walletAddr = wallet.address.toString();
