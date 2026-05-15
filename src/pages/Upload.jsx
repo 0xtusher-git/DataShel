@@ -134,10 +134,8 @@ export default function Upload() {
                 const match = cleanHex.match(/.{1,2}/g);
                 return match ? match.map(byte => parseInt(byte, 16)) : new Array(32).fill(0);
               })(),                                   // 2: merkle root (vector<u8>)
-              (commitments.k || 10).toString(),       // 3: k (u64)
-              (BigInt(Math.floor(Date.now() / 1000 + 365 * 24 * 3600)) * 1000000n).toString(), // 4: expiration (u64)
-              (commitments.m || 3).toString(),        // 5: m (u64)
-              (commitments.n || 13).toString()        // 6: n (u64)
+              (BigInt(Math.floor(Date.now() / 1000 + 365 * 24 * 3600)) * 1000000n).toString(), // 3: expiration (u64)
+              false                                   // 4: is_public (bool)
             ]
           }
         });
