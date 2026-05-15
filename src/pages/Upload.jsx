@@ -91,42 +91,74 @@ export default function Upload() {
       const fileName = `${timestamp}_${file.name.replace(/\s+/g, '_')}`;
       const blobPath = `${walletAddr}/${fileName}`;
       const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
+      
+      // Expiry: 1 year from now in microseconds
+      const expiryMicros = (BigInt(Date.now() + 365 * 24 * 60 * 60 * 1000) * 1000n).toString();
 
-      // ── STEP 1: Use Shelby SDK for integrated upload (On-chain + RPC) ───────
-      console.log('[DataShel] Initializing ShelbyClient...');
-      addToast('Preparing decentralized storage…', 'success', '⚙');
+      // ── STEP 1: Calculate SHA-256 Hash ──────────────────────────────────────
+      console.log('[DataShel] Step 1: Calculating SHA-256 hash...');
+      addToast('Calculating file integrity hash…', 'success', '⚙');
       setUploadProgress(15);
 
-      const client = new ShelbyClient({
-        aptosConfig: { 
-          network: 'custom', 
-          fullnode: 'https://api.shelbynet.shelby.xyz/v1' 
-        },
-        shelbyRpc: SHELBY_API_BASE,
-        signer: {
-          signAndSubmitTransaction: signAndSubmitTransaction,
-          account: account
-        }
-      });
+      const fileBuffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', fileBuffer);
+      const hashBytes = Array.from(new Uint8Array(hashBuffer));
+      
+      console.log('[DataShel] File Hash:', hashBytes);
 
-      console.log('[DataShel] Step 1: Uploading via SDK (register_blob + storage)...');
-      addToast('Please sign the registration in Petra…', 'success', '✍');
+      // ── STEP 2: Register Blob On-Chain (Manual) ─────────────────────────────
+      console.log('[DataShel] Step 2: Submitting register_blob transaction...');
+      addToast('Please sign the transaction in Petra…', 'success', '✍');
       setUploadProgress(30);
 
-      const result = await client.uploadBlob(file, fileName);
-      console.log('[DataShel] SDK Upload result:', result);
+      const txPayload = {
+        data: {
+          function: `${SHELBY_DEPLOYER}::blob_metadata::register_blob`,
+          typeArguments: [],
+          functionArguments: [
+            fileName,                       // 0: blob name
+            file.size.toString(),            // 1: size in bytes (u64)
+            hashBytes,                       // 2: SHA-256 hash (vector<u8>)
+            '8',                            // 3: n_shards (k+m = 6+2 = 8)
+            expiryMicros,                   // 4: expiry (u64 micros)
+            '6',                            // 5: min_shards (k value)
+            '8'                             // 6: max_shards (n value)
+          ]
+        }
+      };
+
+      console.log('[DataShel] Petra Transaction Args:', txPayload.data.functionArguments);
       
-      const blobId = result.id || result.blob_id || result.blobId;
-      if (!blobId) {
-        throw new Error('Upload succeeded but no blob ID was returned.');
+      const txResult = await signAndSubmitTransaction(txPayload);
+      console.log('[DataShel] On-chain registration tx:', txResult?.hash);
+      
+      addToast('Transaction confirmed! Uploading to storage…', 'success', '⛓');
+      setUploadProgress(50);
+
+      // ── STEP 3: Upload Raw File to Shelby RPC ───────────────────────────────
+      console.log('[DataShel] Step 3: Uploading raw file to Shelby RPC...');
+      const uploadUrl = `${SHELBY_API_BASE}/v1/blobs/${walletAddr}/${fileName}`;
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+        },
+        body: file,
+      });
+
+      if (!uploadResponse.ok) {
+        const errText = await uploadResponse.text();
+        console.error('[DataShel] Upload error response:', errText);
+        throw new Error(`Storage upload failed: ${errText}`);
       }
+      
+      console.log('[DataShel] File uploaded successfully.');
+      setUploadProgress(75);
 
-      addToast('Upload complete! Finalizing marketplace listing…', 'success', '⛓');
-      setUploadProgress(70);
-
-      // ── STEP 2: Update global registry with new metadata ────────────────────
-      console.log('[DataShel] Step 3: Updating global registry...');
-      addToast('Registering dataset in marketplace…', 'success', '🌍');
+      // ── STEP 4: Update Global Marketplace Registry ──────────────────────────
+      console.log('[DataShel] Step 4: Updating marketplace registry...');
+      addToast('Finalizing listing in marketplace…', 'success', '🌍');
 
       const metadata = {
         id: metadataId,
@@ -137,7 +169,6 @@ export default function Upload() {
         price: Number(form.price),
         uploader: walletAddr,
         blobPath: blobPath,
-        blobId: blobId,
         fileName: file.name,
         fileType: file.type || 'application/octet-stream',
         timestamp: timestamp,
@@ -154,15 +185,13 @@ export default function Upload() {
         if (fetchRes.ok) {
           const parsed = await fetchRes.json();
           existingRegistry = Array.isArray(parsed) ? parsed : [];
-        } else if (fetchRes.status !== 404) {
-          console.warn('[DataShel] Registry fetch returned', fetchRes.status);
         }
       } catch (fetchErr) {
-        console.warn('[DataShel] Could not fetch registry, starting fresh:', fetchErr.message);
+        console.warn('[DataShel] Registry fetch failed, starting fresh:', fetchErr.message);
       }
 
       existingRegistry.push(metadata);
-      setUploadProgress(80);
+      setUploadProgress(90);
 
       const putRegistryRes = await fetch(registryUrl, {
         method: 'PUT',
@@ -174,15 +203,10 @@ export default function Upload() {
       });
 
       if (!putRegistryRes.ok) {
-        const errText = await putRegistryRes.text();
-        console.error('[DataShel] Registry PUT error:', errText);
-        // Don't block success if registry update fails — file is already uploaded
-        console.warn('[DataShel] Registry update failed, but file is on Shelby. Try re-running setup-registry.mjs');
-      } else {
-        console.log('[DataShel] Registry updated successfully.');
+        console.warn('[DataShel] Registry update failed, but file is on Shelby.');
       }
 
-      // ── STEP 4 (100%): Success ───────────────────────────────────────────────
+      // ── STEP 5 (100%): Success ───────────────────────────────────────────────
       setUploadProgress(100);
       addDataset(metadata);
       addToast('Dataset listed successfully! 🎉', 'success', '✓');
