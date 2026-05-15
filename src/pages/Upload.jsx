@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
 import { useData } from '../context/DataContext';
+import { ShelbyClient } from '@shelby-protocol/sdk';
 import { useToast } from '../context/ToastContext';
 import FaucetPanel from '../components/FaucetPanel';
 import './Upload.css';
@@ -20,7 +21,7 @@ const STEPS = [
 
 export default function Upload() {
   const navigate = useNavigate();
-  const { wallet, connect, connecting, truncate, signAndSubmitTransaction } = useWallet();
+  const { wallet, account, connect, connecting, truncate, signAndSubmitTransaction } = useWallet();
   const { addDataset } = useData();
   const { addToast } = useToast();
 
@@ -91,89 +92,39 @@ export default function Upload() {
       const blobPath = `${walletAddr}/${fileName}`;
       const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
 
-      // ── STEP 1 (20%): Register the blob on-chain via Petra ──────────────────
-      console.log('[DataShel] Step 1: Generating commitments and registering blob...');
-      addToast('Calculating data commitments…', 'success', '⚙');
+      // ── STEP 1: Use Shelby SDK for integrated upload (On-chain + RPC) ───────
+      console.log('[DataShel] Initializing ShelbyClient...');
+      addToast('Preparing decentralized storage…', 'success', '⚙');
       setUploadProgress(15);
 
-      let commitments;
-      try {
-        // Try dynamic import to avoid top-level crash
-        const { generateCommitments, createDefaultErasureCodingProvider } = await import('@shelby-protocol/sdk/browser');
-        const provider = await createDefaultErasureCodingProvider();
-        const fileBuffer = await file.arrayBuffer();
-        commitments = await generateCommitments(provider, new Uint8Array(fileBuffer));
-      } catch (sdkErr) {
-        console.warn('[DataShel] SDK commitment generation failed, using fallback:', sdkErr.message);
-        // Fallback: Dummy Merkle Root (all zeros) + Standard EC params
-        // This is a last resort to keep the app functional if the SDK crashes
-        commitments = {
-          blob_merkle_root: new Uint8Array(32).fill(0),
-          k: 6,
-          m: 4,
-          n: 6
-        };
-      }
-      
-      console.log('[DataShel] Commitments:', commitments);
-      addToast('Sign the transaction in your Petra wallet…', 'success', '✍');
-      setUploadProgress(20);
-
-      let txResult;
-      try {
-        txResult = await signAndSubmitTransaction({
-          data: {
-            function: `${SHELBY_DEPLOYER}::blob_metadata::register_blob`,
-            typeArguments: [],
-            functionArguments: [
-              fileName,                               // 0: blob name
-              file.size.toString(),                   // 1: size in bytes (u64)
-              (() => {
-                const hex = commitments.blob_merkle_root;
-                const cleanHex = (hex && hex.startsWith('0x')) ? hex.slice(2) : (hex || '');
-                const match = cleanHex.match(/.{1,2}/g);
-                return match ? match.map(byte => parseInt(byte, 16)) : new Array(32).fill(0);
-              })(),                                   // 2: merkle root (vector<u8>)
-              (commitments.k || 6).toString(),       // 3: k (u32/u64)
-              (BigInt(Math.floor(Date.now() / 1000 + 365 * 24 * 3600)) * 1000000n).toString(), // 4: expiration (u64 micros)
-              (commitments.m || 4).toString(),        // 5: m (u64)
-              (commitments.n || 6).toString()        // 6: n (u64)
-            ]
-          }
-        });
-        console.log('[DataShel] On-chain registration tx:', txResult?.hash);
-        addToast('Transaction confirmed! Uploading file…', 'success', '⛓');
-      } catch (txErr) {
-        // If the on-chain call fails (wrong fn args / not required), log and continue
-        // The REST API may still accept the PUT if blob doesn't need pre-registration
-        console.warn('[DataShel] On-chain registration failed (may not be required):', txErr.message);
-        addToast('Uploading to Shelby storage…', 'success', '⬆');
-      }
-
-      setUploadProgress(40);
-
-      // ── STEP 2 (60%): PUT raw file to Shelby REST API ───────────────────────
-      console.log('[DataShel] Step 2: Uploading raw file to Shelby...');
-      const uploadUrl = `${SHELBY_API_BASE}/v1/blobs/${walletAddr}/${fileName}`;
-      console.log('[DataShel] Upload URL:', uploadUrl);
-
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type || 'application/octet-stream',
+      const client = new ShelbyClient({
+        aptosConfig: { 
+          network: 'custom', 
+          fullnode: 'https://api.shelbynet.shelby.xyz/v1' 
         },
-        body: file,
+        shelbyRpc: SHELBY_API_BASE,
+        signer: {
+          signAndSubmitTransaction: signAndSubmitTransaction,
+          account: account
+        }
       });
 
-      if (!uploadResponse.ok) {
-        const errText = await uploadResponse.text();
-        console.error('[DataShel] Upload error response:', errText);
-        throw new Error(`File upload failed (${uploadResponse.status}): ${errText}`);
-      }
-      console.log('[DataShel] File uploaded to:', blobPath);
-      setUploadProgress(60);
+      console.log('[DataShel] Step 1: Uploading via SDK (register_blob + storage)...');
+      addToast('Please sign the registration in Petra…', 'success', '✍');
+      setUploadProgress(30);
 
-      // ── STEP 3 (80%): Fetch registry, append metadata, PUT registry back ────
+      const result = await client.uploadBlob(file, fileName);
+      console.log('[DataShel] SDK Upload result:', result);
+      
+      const blobId = result.id || result.blob_id || result.blobId;
+      if (!blobId) {
+        throw new Error('Upload succeeded but no blob ID was returned.');
+      }
+
+      addToast('Upload complete! Finalizing marketplace listing…', 'success', '⛓');
+      setUploadProgress(70);
+
+      // ── STEP 2: Update global registry with new metadata ────────────────────
       console.log('[DataShel] Step 3: Updating global registry...');
       addToast('Registering dataset in marketplace…', 'success', '🌍');
 
@@ -186,6 +137,7 @@ export default function Upload() {
         price: Number(form.price),
         uploader: walletAddr,
         blobPath: blobPath,
+        blobId: blobId,
         fileName: file.name,
         fileType: file.type || 'application/octet-stream',
         timestamp: timestamp,
@@ -435,9 +387,9 @@ export default function Upload() {
                   <div className="upload-progress-wrap">
                     <div className="upload-progress-header">
                       <span className="upload-progress-label">
-                        {uploadProgress < 15 ? 'Awaiting signature…'
-                          : uploadProgress < 85 ? 'Uploading to Shelby…'
-                          : uploadProgress < 100 ? 'Registering on-chain…'
+                        {uploadProgress < 30 ? 'Preparing…'
+                          : uploadProgress < 70 ? 'Awaiting Petra signature…'
+                          : uploadProgress < 100 ? 'Finalizing listing…'
                           : 'Complete!'}
                       </span>
                       <span className="upload-progress-pct">{uploadProgress}%</span>

@@ -88,6 +88,7 @@ export function WalletProvider({ children }) {
       truncate, 
       error, 
       isDetected,
+      account,
       signAndSubmitTransaction,
       signMessage
     }}>
