@@ -19,7 +19,7 @@ export function DataProvider({ children }) {
       
       const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
       const headers = {
-        'Authorization': API_KEY,
+        'Authorization': `Bearer ${API_KEY}`,
         'x-api-key': API_KEY
       };
       console.log('[DataShel] Sending headers for registry fetch:', headers);

@@ -99,7 +99,7 @@ export default function Upload() {
       console.log('[DataShel] Using API Key (starts with):', API_KEY ? API_KEY.substring(0, 4) + '...' : 'UNDEFINED');
 
       const headers = {
-        'Authorization': API_KEY,
+        'Authorization': `Bearer ${API_KEY}`,
         'x-api-key': API_KEY,
         'Content-Type': file.type || 'application/octet-stream'
       };
@@ -144,7 +144,7 @@ export default function Upload() {
       };
 
       const metaHeaders = {
-        'Authorization': API_KEY,
+        'Authorization': `Bearer ${API_KEY}`,
         'x-api-key': API_KEY,
         'Content-Type': 'application/json'
       };
