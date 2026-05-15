@@ -7,7 +7,7 @@ import FaucetPanel from '../components/FaucetPanel';
 import './Upload.css';
 
 const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
-const REGISTRY_ADDR = "0xd47a54e17b35414d87654a1d5e43f4d3f0000000";
+const REGISTRY_ADDR = "0x000000000000000000000000d47a54e17b35414d87654a1d5e43f4d3f0000000";
 
 const CATEGORIES = ['Images', 'Text', 'Audio', 'Tabular', 'Other'];
 
@@ -99,7 +99,6 @@ export default function Upload() {
       console.log('[DataShel] Using API Key (starts with):', API_KEY ? API_KEY.substring(0, 4) + '...' : 'UNDEFINED');
 
       const headers = {
-        'Authorization': `Bearer ${API_KEY}`,
         'x-api-key': API_KEY,
         'Content-Type': file.type || 'application/octet-stream'
       };
@@ -144,7 +143,6 @@ export default function Upload() {
       };
 
       const metaHeaders = {
-        'Authorization': `Bearer ${API_KEY}`,
         'x-api-key': API_KEY,
         'Content-Type': 'application/json'
       };
