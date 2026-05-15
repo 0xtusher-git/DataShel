@@ -1,6 +1,7 @@
-import { createDefaultErasureCodingProvider, generateCommitments } from '@shelby-protocol/sdk/node';
+import { createDefaultErasureCodingProvider, generateCommitments, SHELBY_DEPLOYER } from '@shelby-protocol/sdk/node';
 
 async function test() {
+  console.log('SHELBY_DEPLOYER from SDK:', SHELBY_DEPLOYER);
   try {
     const provider = await createDefaultErasureCodingProvider();
     const data = new Uint8Array([1, 2, 3, 4, 5]);
