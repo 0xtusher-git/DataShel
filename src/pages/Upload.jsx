@@ -86,6 +86,7 @@ export default function Upload() {
       if (!supabase) {
         throw new Error('Supabase client is not initialized. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
       }
+      const timestamp = Date.now();
       const walletAddr = wallet?.address?.toString() || '';
       const fileName = `${timestamp}_${file?.name?.replace(/\s+/g, '_') || 'file'}`;
 
