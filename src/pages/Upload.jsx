@@ -4,6 +4,7 @@ import { useWallet } from '../context/WalletContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import FaucetPanel from '../components/FaucetPanel';
+import { generateCommitments, createDefaultErasureCodingProvider } from '@shelby-protocol/sdk/browser';
 import './Upload.css';
 
 const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
@@ -92,7 +93,16 @@ export default function Upload() {
       const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
 
       // ── STEP 1 (20%): Register the blob on-chain via Petra ──────────────────
-      console.log('[DataShel] Step 1: Registering blob on-chain via Petra wallet...');
+      console.log('[DataShel] Step 1: Generating commitments and registering blob...');
+      addToast('Calculating data commitments…', 'success', '⚙');
+      setUploadProgress(15);
+
+      // Generate commitments (Merkle Root + Erasure Coding params)
+      const provider = await createDefaultErasureCodingProvider();
+      const fileBuffer = await file.arrayBuffer();
+      const commitments = await generateCommitments(provider, new Uint8Array(fileBuffer));
+      
+      console.log('[DataShel] Commitments generated:', commitments);
       addToast('Sign the transaction in your Petra wallet…', 'success', '✍');
       setUploadProgress(20);
 
@@ -103,9 +113,13 @@ export default function Upload() {
             function: `${SHELBY_DEPLOYER}::blob_metadata::register_blob`,
             typeArguments: [],
             functionArguments: [
-              `${walletAddr}/${fileName}`,          // blob name (account/filename)
+              fileName,                              // blob name (just filename, account is signer)
               file.size.toString(),                  // size in bytes
-              Math.floor(Date.now() / 1000 + 365 * 24 * 3600).toString(), // expiration unix timestamp
+              Array.from(commitments.blob_merkle_root), // merkle root (vector<u8>)
+              commitments.k,                         // k (u32)
+              (BigInt(Math.floor(Date.now() / 1000 + 365 * 24 * 3600)) * 1000000n).toString(), // expiration (u64 micros)
+              commitments.m,                         // m (u8)
+              commitments.n                          // n (u8)
             ]
           }
         });
