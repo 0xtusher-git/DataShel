@@ -2,55 +2,42 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const DataContext = createContext(null);
 
-const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
-const REGISTRY_ADDR = "0x29ddb3b55bd73dbb2d3081c091163e1b16c0684f6e3d6e6749c2bc17afd18aa1"; // Owner wallet address
+import { supabase } from '../lib/supabase';
 
 export function DataProvider({ children }) {
   const [datasets, setDatasets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all dataset metadata from Shelby
+  // Fetch all dataset metadata from Supabase
   const fetchAllDatasets = async () => {
     setLoading(true);
     
     try {
-      const listUrl = `${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/datashel-registry.json`;
-      console.log('[DataShel] Fetching registry from:', listUrl);
-      
-      const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
-      const headers = {
-        'x-api-key': API_KEY
-      };
-      console.log('[DataShel] Sending headers for registry fetch:', headers);
+      console.log('[DataShel] Fetching datasets from Supabase...');
+      const { data, error } = await supabase
+        .from('datasets')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      const listResponse = await fetch(listUrl, {
-        headers: headers
-      });
-
-      if (!listResponse.ok) {
-        if (listResponse.status === 404) {
-          console.log('[DataShel] Registry not found, starting fresh.');
-          setDatasets([]);
-          return;
-        }
-        const errText = await listResponse.text();
-        console.error(`[DataShel] Registry fetch failed (${listResponse.status}):`, errText);
-        throw new Error(`Failed to fetch registry list (${listResponse.status})`);
-      }
+      if (error) throw error;
       
-      const validDatasets = await listResponse.json();
+      const validDatasets = data.map(ds => ({
+        id: ds.id,
+        name: ds.name,
+        category: ds.category,
+        description: ds.description,
+        price: ds.price,
+        uploader: ds.owner_address,
+        filePath: ds.file_path,
+        downloads: ds.download_count || 0,
+        timestamp: new Date(ds.created_at).getTime(),
+        size: 'MB' // Placeholder or omit if not in table
+      }));
       
-      // Sort datasets by timestamp (newest first)
-      if (Array.isArray(validDatasets)) {
-        validDatasets.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        console.log(`[DataShel] Loaded ${validDatasets.length} datasets from Shelby`);
-        setDatasets(validDatasets);
-      } else {
-        console.warn('[DataShel] Registry format is invalid. Resetting to empty array.');
-        setDatasets([]);
-      }
+      console.log(`[DataShel] Loaded ${validDatasets.length} datasets from Supabase`);
+      setDatasets(validDatasets);
     } catch (err) {
-      console.error('Error fetching datasets from Shelby:', err);
+      console.error('Error fetching datasets from Supabase:', err);
     } finally {
       setLoading(false);
     }

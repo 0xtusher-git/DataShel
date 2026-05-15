@@ -3,16 +3,8 @@ import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
 import { useWallet } from '../context/WalletContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
+import { supabase } from '../lib/supabase';
 import './DatasetCard.css';
-
-// Initialize Aptos client for Shelbynet
-const aptosConfig = new AptosConfig({ 
-  fullnode: "https://api.shelbynet.shelby.xyz/v1",
-  network: Network.CUSTOM
-});
-const aptosClient = new Aptos(aptosConfig);
-
-const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
 
 const CATEGORY_ICONS = {
   Images:  '🖼',
@@ -83,17 +75,17 @@ export default function DatasetCard({ dataset }) {
         '💰'
       );
       
-      // Step 2: Retrieve the data from Shelby Protocol
-      // blobPath is stored as "ownerAddress/filename"
-      const blobPath = dataset.blobPath || `${dataset.uploader}/${dataset.fileName}`;
-      const downloadUrl = `${SHELBY_API_BASE}/v1/blobs/${blobPath}`;
-      console.log('[DataShel] Downloading from:', downloadUrl);
+      // Step 2: Retrieve the data from Supabase Storage
+      const filePath = dataset.filePath;
+      console.log('[DataShel] Downloading from Supabase:', filePath);
 
-      const res = await fetch(downloadUrl);
-      if (!res.ok) throw new Error(`Download failed (${res.status}): ${await res.text()}`);
+      const { data, error } = await supabase.storage
+        .from('datasets')
+        .download(filePath);
+
+      if (error) throw error;
       
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(data);
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
@@ -102,6 +94,12 @@ export default function DatasetCard({ dataset }) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+
+      // Step 3: Increment download count in DB
+      await supabase
+        .from('datasets')
+        .update({ download_count: (dataset.downloads || 0) + 1 })
+        .eq('id', dataset.id);
 
       recordDownload(dataset.id);
       addToast('Download complete! ✓', 'success', '📦');

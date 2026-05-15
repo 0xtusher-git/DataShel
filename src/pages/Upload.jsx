@@ -2,12 +2,11 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
 import { useData } from '../context/DataContext';
+import { supabase } from '../lib/supabase';
 import { useToast } from '../context/ToastContext';
 import FaucetPanel from '../components/FaucetPanel';
 import './Upload.css';
 
-const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
-const REGISTRY_ADDR = "0x29ddb3b55bd73dbb2d3081c091163e1b16c0684f6e3d6e6749c2bc17afd18aa1";
 const SHELBY_DEPLOYER = "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
 
 const CATEGORIES = ['Images', 'Text', 'Audio', 'Tabular', 'Other'];
@@ -88,77 +87,45 @@ export default function Upload() {
       const metadataId = `ds_${timestamp}`;
       const walletAddr = wallet.address.toString();
       const fileName = `${timestamp}_${file.name.replace(/\s+/g, '_')}`;
-      const blobPath = `${walletAddr}/${fileName}`;
-      const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
+
+      // ── STEP 1: Upload to Supabase Storage ──────────────────────────────────
+      console.log('[DataShel] Step 1: Uploading to Supabase Storage...');
+      addToast('Uploading dataset to storage…', 'success', '⚙');
+      setUploadProgress(10);
+
+      const { error: storageError } = await supabase.storage
+        .from('datasets')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (storageError) throw storageError;
+      setUploadProgress(70);
+
+      // ── STEP 2: Save metadata to Supabase DB ────────────────────────────────
+      console.log('[DataShel] Step 2: Saving metadata to Supabase DB...');
+      addToast('Finalizing marketplace listing…', 'success', '🌍');
+
+      const { error: dbError } = await supabase
+        .from('datasets')
+        .insert([{
+          id: metadataId,
+          name: form.name.trim(),
+          category: form.category,
+          description: form.description.trim(),
+          price: Number(form.price),
+          owner_address: walletAddr,
+          file_path: fileName,
+          download_count: 0,
+          created_at: new Date(timestamp).toISOString()
+        }]);
+
+      if (dbError) throw dbError;
+
+      // ── STEP 3 (100%): Success ───────────────────────────────────────────────
+      setUploadProgress(100);
       
-      // Expiry: 1 year from now in microseconds
-      const expiryMicros = (BigInt(Date.now() + 365 * 24 * 60 * 60 * 1000) * 1000n).toString();
-
-      // ── STEP 1: Calculate SHA-256 Hash ──────────────────────────────────────
-      console.log('[DataShel] Step 1: Calculating SHA-256 hash...');
-      addToast('Calculating file integrity hash…', 'success', '⚙');
-      setUploadProgress(15);
-
-      const fileBuffer = await file.arrayBuffer();
-      const hashBuffer = await crypto.subtle.digest('SHA-256', fileBuffer);
-      const hashBytes = Array.from(new Uint8Array(hashBuffer));
-      
-      console.log('[DataShel] File Hash:', hashBytes);
-
-      // ── STEP 2: Register Blob On-Chain (Manual) ─────────────────────────────
-      console.log('[DataShel] Step 2: Submitting register_blob transaction...');
-      addToast('Please sign the transaction in Petra…', 'success', '✍');
-      setUploadProgress(30);
-
-      const txPayload = {
-        data: {
-          function: `${SHELBY_DEPLOYER}::blob_metadata::register_blob`,
-          typeArguments: [],
-          functionArguments: [
-            fileName,                       // 0: blob name
-            file.size.toString(),            // 1: size in bytes (u64)
-            hashBytes,                       // 2: SHA-256 hash (vector<u8>)
-            '8',                            // 3: n_shards (k+m = 6+2 = 8)
-            expiryMicros,                   // 4: expiry (u64 micros)
-            '6',                            // 5: min_shards (k value)
-            '8'                             // 6: max_shards (n value)
-          ]
-        }
-      };
-
-      console.log('[DataShel] Petra Transaction Args:', txPayload.data.functionArguments);
-      
-      const txResult = await signAndSubmitTransaction(txPayload);
-      console.log('[DataShel] On-chain registration tx:', txResult?.hash);
-      
-      addToast('Transaction confirmed! Uploading to storage…', 'success', '⛓');
-      setUploadProgress(50);
-
-      // ── STEP 3: Upload Raw File to Shelby RPC ───────────────────────────────
-      console.log('[DataShel] Step 3: Uploading raw file to Shelby RPC...');
-      const uploadUrl = `${SHELBY_API_BASE}/v1/blobs/${walletAddr}/${fileName}`;
-      
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type || 'application/octet-stream',
-        },
-        body: file,
-      });
-
-      if (!uploadResponse.ok) {
-        const errText = await uploadResponse.text();
-        console.error('[DataShel] Upload error response:', errText);
-        throw new Error(`Storage upload failed: ${errText}`);
-      }
-      
-      console.log('[DataShel] File uploaded successfully.');
-      setUploadProgress(75);
-
-      // ── STEP 4: Update Global Marketplace Registry ──────────────────────────
-      console.log('[DataShel] Step 4: Updating marketplace registry...');
-      addToast('Finalizing listing in marketplace…', 'success', '🌍');
-
       const metadata = {
         id: metadataId,
         name: form.name.trim(),
@@ -167,46 +134,11 @@ export default function Upload() {
         size: formatBytes(file.size),
         price: Number(form.price),
         uploader: walletAddr,
-        blobPath: blobPath,
         fileName: file.name,
-        fileType: file.type || 'application/octet-stream',
         timestamp: timestamp,
         downloads: 0,
-        earnings: 0,
       };
 
-      const registryUrl = `${SHELBY_API_BASE}/v1/blobs/${REGISTRY_ADDR}/datashel-registry.json`;
-      const apiHeaders = { 'x-api-key': API_KEY };
-
-      let existingRegistry = [];
-      try {
-        const fetchRes = await fetch(registryUrl, { headers: apiHeaders });
-        if (fetchRes.ok) {
-          const parsed = await fetchRes.json();
-          existingRegistry = Array.isArray(parsed) ? parsed : [];
-        }
-      } catch (fetchErr) {
-        console.warn('[DataShel] Registry fetch failed, starting fresh:', fetchErr.message);
-      }
-
-      existingRegistry.push(metadata);
-      setUploadProgress(90);
-
-      const putRegistryRes = await fetch(registryUrl, {
-        method: 'PUT',
-        headers: {
-          'x-api-key': API_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(existingRegistry),
-      });
-
-      if (!putRegistryRes.ok) {
-        console.warn('[DataShel] Registry update failed, but file is on Shelby.');
-      }
-
-      // ── STEP 5 (100%): Success ───────────────────────────────────────────────
-      setUploadProgress(100);
       addDataset(metadata);
       addToast('Dataset listed successfully! 🎉', 'success', '✓');
       setTimeout(() => navigate('/my-datasets'), 1500);
@@ -410,8 +342,7 @@ export default function Upload() {
                   <div className="upload-progress-wrap">
                     <div className="upload-progress-header">
                       <span className="upload-progress-label">
-                        {uploadProgress < 30 ? 'Preparing…'
-                          : uploadProgress < 70 ? 'Awaiting Petra signature…'
+                        {uploadProgress < 70 ? 'Uploading to Supabase…'
                           : uploadProgress < 100 ? 'Finalizing listing…'
                           : 'Complete!'}
                       </span>
@@ -470,10 +401,10 @@ export default function Upload() {
               How storage works
             </h3>
             <ul className="sidebar-info-list">
-              <li>Your file is content-addressed and stored on Shelby nodes</li>
-              <li>A storage fee (small APT amount) covers permanent storage</li>
-              <li>The dataset CID is registered on Aptos blockchain</li>
-              <li>Buyers pay ShelbyUSD → sent directly to your wallet</li>
+              <li>Your file is encrypted and stored in Supabase Storage</li>
+              <li>Metadata is indexed in Supabase PostgreSQL</li>
+              <li>Buyers pay ShelbyUSD on Shelbynet → sent to your wallet</li>
+              <li>Verified payments trigger secure file retrieval</li>
             </ul>
           </div>
         </div>
