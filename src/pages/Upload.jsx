@@ -87,7 +87,6 @@ export default function Upload() {
         throw new Error('Supabase client is not initialized. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
       }
       const timestamp = Date.now();
-      const metadataId = `ds_${timestamp}`;
       const walletAddr = wallet.address.toString();
       const fileName = `${timestamp}_${file.name.replace(/\s+/g, '_')}`;
 
@@ -110,10 +109,9 @@ export default function Upload() {
       console.log('[DataShel] Step 2: Saving metadata to Supabase DB...');
       addToast('Finalizing marketplace listing…', 'success', '🌍');
 
-      const { error: dbError } = await supabase
+      const { data, error: dbError } = await supabase
         .from('datasets')
         .insert([{
-          id: metadataId,
           name: form.name.trim(),
           category: form.category,
           description: form.description.trim(),
@@ -122,15 +120,17 @@ export default function Upload() {
           file_path: fileName,
           download_count: 0,
           created_at: new Date(timestamp).toISOString()
-        }]);
+        }])
+        .select();
 
       if (dbError) throw dbError;
 
       // ── STEP 3 (100%): Success ───────────────────────────────────────────────
       setUploadProgress(100);
       
+      const insertedRow = data[0];
       const metadata = {
-        id: metadataId,
+        id: insertedRow.id,
         name: form.name.trim(),
         category: form.category,
         description: form.description.trim(),
