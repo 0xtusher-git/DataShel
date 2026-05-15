@@ -8,8 +8,8 @@
 // to bypass the 'got' library bug in Node v25.
 // ============================================================
 
-import { generateCommitments, createDefaultErasureCodingProvider, SHELBY_DEPLOYER } from '@shelby-protocol/sdk/node';
 import { Account, Ed25519PrivateKey, Network, Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
+import crypto from 'crypto';
 
 const WALLET_ADDRESS = '0x29ddb3b55bd73dbb2d3081c091163e1b16c0684f6e3d6e6749c2bc17afd18aa1';
 const SHELBY_API_BASE = 'https://api.shelbynet.shelby.xyz/shelby';
@@ -50,22 +50,24 @@ async function main() {
   const registryContent = JSON.stringify([]);
   const blobData = new TextEncoder().encode(registryContent);
 
-  const provider = await createDefaultErasureCodingProvider();
-  const commitments = await generateCommitments(provider, blobData);
+  const hash = crypto.createHash('sha256').update(blobData).digest();
+  const hashBytes = Array.from(hash);
 
   console.log('📝 Submitting on-chain transaction...');
   try {
     const transaction = await aptos.transaction.build.simple({
       sender: account.accountAddress,
       data: {
-        function: `${SHELBY_DEPLOYER}::blob_metadata::register_blob`,
+        function: `0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a::blob_metadata::register_blob`,
         typeArguments: [],
         functionArguments: [
-          BLOB_NAME,
-          Array.from(commitments.blob_merkle_root),
-          blobData.length,
-          ONE_YEAR_MICROS.toString(),
-          false,
+          BLOB_NAME,                       // 0: blob name
+          blobData.length.toString(),      // 1: size in bytes (u64)
+          hashBytes,                       // 2: SHA-256 hash (vector<u8>)
+          '8',                            // 3: n_shards (k+m = 6+2 = 8)
+          ONE_YEAR_MICROS.toString(),      // 4: expiry (u64 micros)
+          '6',                            // 5: min_shards (k value)
+          '8'                             // 6: max_shards (n value)
         ],
       },
     });
