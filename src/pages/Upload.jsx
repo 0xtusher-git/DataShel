@@ -126,13 +126,16 @@ export default function Upload() {
             function: `${SHELBY_DEPLOYER}::blob_metadata::register_blob`,
             typeArguments: [],
             functionArguments: [
-              fileName,                              // blob name
-              file.size.toString(),                  // size in bytes
-              Array.from(commitments.blob_merkle_root), // merkle root
-              commitments.k,                         // k
-              (BigInt(Math.floor(Date.now() / 1000 + 365 * 24 * 3600)) * 1000000n).toString(), // expiration
-              commitments.m,                         // m
-              commitments.n                          // n
+              fileName,                               // blob name
+              (() => {
+                const hex = commitments.blob_merkle_root;
+                const cleanHex = hex.startsWith('0x') ? hex.slice(2) : hex;
+                const match = cleanHex.match(/.{1,2}/g);
+                return match ? match.map(byte => parseInt(byte, 16)) : [];
+              })(),                                   // merkle root as vector<u8>
+              file.size.toString(),                   // size as u64 string
+              (BigInt(Math.floor(Date.now() / 1000 + 365 * 24 * 3600)) * 1000000n).toString(), // expiration (1 year in micros)
+              false                                   // is_public (bool)
             ]
           }
         });

@@ -15,6 +15,7 @@
     "@shelby-protocol/sdk": "^0.3.1",
     "@telegram-apps/bridge": "^2.11.0",
     "aptos": "^1.22.1",
+    "buffer": "^6.0.3",
     "petra-plugin-wallet-adapter": "^0.4.5",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
