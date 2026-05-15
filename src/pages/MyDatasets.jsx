@@ -55,13 +55,13 @@ export default function MyDatasets() {
 
   const myDatasets = wallet
     ? datasets.filter(d => {
-        const myAddr = wallet.address.toString();
+        const myAddr = wallet?.address?.toString();
         return d.uploader === myAddr;
       })
     : [];
 
-  const totalEarnings = myDatasets.reduce((s, d) => s + d.earnings, 0);
-  const totalDownloads = myDatasets.reduce((s, d) => s + d.downloads, 0);
+  const totalEarnings = myDatasets.reduce((s, d) => s + (Number(d.price || 0) * (d.downloads || 0)), 0);
+  const totalDownloads = myDatasets.reduce((s, d) => s + (d.downloads || 0), 0);
 
   const handleSavePrice = (id, newPrice) => {
     updateDataset(id, { price: newPrice });
@@ -93,7 +93,7 @@ export default function MyDatasets() {
         <div className="myds-header">
           <div>
             <h1 className="myds-title">My Datasets</h1>
-            <p className="myds-sub wallet-addr">{wallet.address.toString()}</p>
+            <p className="myds-sub wallet-addr">{wallet?.address?.toString() || 'Connected'}</p>
           </div>
           <Link to="/upload" className="btn btn-primary btn-sm" id="myds-upload-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -108,12 +108,12 @@ export default function MyDatasets() {
           <div className="myds-stats">
             <div className="myds-stat-card card">
               <div className="myds-stat-label">Total Earnings</div>
-              <div className="myds-stat-value">{totalEarnings.toLocaleString()}</div>
+              <div className="myds-stat-value">{(totalEarnings || 0).toLocaleString()}</div>
               <div className="myds-stat-unit">ShelbyUSD</div>
             </div>
             <div className="myds-stat-card card">
               <div className="myds-stat-label">Total Downloads</div>
-              <div className="myds-stat-value">{totalDownloads.toLocaleString()}</div>
+              <div className="myds-stat-value">{(totalDownloads || 0).toLocaleString()}</div>
               <div className="myds-stat-unit">across all datasets</div>
             </div>
             <div className="myds-stat-card card">
@@ -148,7 +148,7 @@ export default function MyDatasets() {
 
                   <div className="myds-card-metrics">
                     <div className="myds-metric">
-                      <div className="myds-metric-value">{ds.earnings.toLocaleString()}</div>
+                      <div className="myds-metric-value">{(Number(ds.price || 0) * (ds.downloads || 0)).toLocaleString()}</div>
                       <div className="myds-metric-label">ShelbyUSD earned</div>
                     </div>
                     <div className="myds-metric">

@@ -62,12 +62,12 @@ export default function Home() {
           {/* Stat bar */}
           <div className="hero-stats">
             <div className="stat-item">
-              <span className="stat-value" id="stat-listed">{totalStats.listed.toLocaleString()}</span>
+              <span className="stat-value" id="stat-listed">{(totalStats?.listed || 0).toLocaleString()}</span>
               <span className="stat-label">Datasets Listed</span>
             </div>
             <span className="stat-dot">·</span>
             <div className="stat-item">
-              <span className="stat-value" id="stat-downloads">{totalStats.downloads.toLocaleString()}</span>
+              <span className="stat-value" id="stat-downloads">{(totalStats?.downloads || 0).toLocaleString()}</span>
               <span className="stat-label">Total Downloads</span>
             </div>
             <span className="stat-dot">·</span>

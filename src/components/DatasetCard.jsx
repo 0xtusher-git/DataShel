@@ -36,7 +36,7 @@ export default function DatasetCard({ dataset }) {
     }
 
     // Block owner from downloading their own dataset
-    if (wallet.address.toString() === dataset.uploader) {
+    if (wallet?.address?.toString() === dataset.uploader) {
       addToast('You cannot download your own dataset', 'error', '🔒');
       return;
     }
@@ -54,7 +54,7 @@ export default function DatasetCard({ dataset }) {
           typeArguments: [],
           functionArguments: [
             dataset.uploader, // recipient (owner)
-            (dataset.price * 100000000).toString() // amount in octas
+            ((dataset.price || 0) * 100000000).toString() // amount in octas
           ]
         }
       });
