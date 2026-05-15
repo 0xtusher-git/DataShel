@@ -84,18 +84,12 @@ export default function DatasetCard({ dataset }) {
       );
       
       // Step 2: Retrieve the data from Shelby Protocol
+      // blobPath is stored as "ownerAddress/filename"
       const blobPath = dataset.blobPath || `${dataset.uploader}/${dataset.fileName}`;
       const downloadUrl = `${SHELBY_API_BASE}/v1/blobs/${blobPath}`;
-      
-      const API_KEY = import.meta.env.VITE_SHELBY_API_KEY;
-      const headers = {
-        'x-api-key': API_KEY
-      };
-      console.log('[DataShel] Sending headers for download:', headers);
-      
-      const res = await fetch(downloadUrl, {
-        headers: headers
-      });
+      console.log('[DataShel] Downloading from:', downloadUrl);
+
+      const res = await fetch(downloadUrl);
       if (!res.ok) throw new Error(`Download failed (${res.status}): ${await res.text()}`);
       
       const blob = await res.blob();

@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 const DataContext = createContext(null);
 
 const SHELBY_API_BASE = "https://api.shelbynet.shelby.xyz/shelby";
-const REGISTRY_ADDR = "0x000000000000000000000000d47a54e17b35414d87654a1d5e43f4d3f0000000"; // Global registry account
+const REGISTRY_ADDR = "0x29ddb3b55bd73dbb2d3081c091163e1b16c0684f6e3d6e6749c2bc17afd18aa1"; // Owner wallet address
 
 export function DataProvider({ children }) {
   const [datasets, setDatasets] = useState([]);

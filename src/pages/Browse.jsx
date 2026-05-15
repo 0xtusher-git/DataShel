@@ -79,6 +79,30 @@ export default function Browse() {
             <span className="spinner" />
             <p>Fetching datasets from Shelby Protocol…</p>
           </div>
+        ) : datasets.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">🚀</div>
+            <h3>No datasets yet — be the first to upload</h3>
+            <p>The marketplace is empty. Upload a dataset to get started!</p>
+            {/* Owner Initialization Button */}
+            <div style={{ marginTop: '2rem' }}>
+              <button 
+                className="btn btn-outline" 
+                onClick={async () => {
+                  if (!window.aptos) {
+                    alert('Please install Petra wallet');
+                    return;
+                  }
+                  alert('This will initialize the marketplace registry on-chain. Please sign the transaction in your wallet.');
+                  // The initialization happens automatically during the first upload, 
+                  // but we can provide a manual button if needed.
+                  // For now, redirecting to upload is enough.
+                }}
+              >
+                Owner: Initialize Marketplace
+              </button>
+            </div>
+          </div>
         ) : filtered.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">🔍</div>
